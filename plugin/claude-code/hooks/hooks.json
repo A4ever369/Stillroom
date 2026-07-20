@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "still hook session-end",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

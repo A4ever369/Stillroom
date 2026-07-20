@@ -1,0 +1,8 @@
+{
+  "name": "stillroom",
+  "description": "Stillroom — distill your Claude Code sessions into a git-native team knowledge base (.team-context/). Sessions are enqueued automatically on SessionEnd; run `still distill` to turn them into reviewable facts and playbooks.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Stillroom"
+  }
+}
