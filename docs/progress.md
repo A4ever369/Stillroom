@@ -15,6 +15,32 @@
 
 ## 变更日志
 
+### 2026-07-20 — 测试方案落地(第一批)+ 两个真 bug
+
+测试方案见 `docs/testing.md`:按**不变量**而非按包组织,分 L0–L5 六层,除
+「蒸馏质量」外全部可自动化。本批落地 L0/L2/L3:
+
+- `cmd/still/harness_test.go`:CLI 黑盒 harness。每 case 一个隔离世界(临时 git
+  repo + 临时 `CLAUDE_CONFIG_DIR` + fake `claude`),**PATH 只含 fake bin 目录**,
+  保证「机器上没装 claude」这类分支在开发机上也能真实复现。
+- `hook_contract_test.go`:14 种坏输入断言 exit 0 且静默。
+- `cli_test.go`:init/distill/status/doctor/materialize 全命令矩阵,含 10 种
+  畸形模型输出(散文、截断 JSON、路径穿越 id ……)。
+- `privacy_test.go`:10 种 secret 形状,断言蒸馏后**仓库内任何文件**不含原文。
+- `internal/ir/invariants_test.go`:确定性与供替单向的随机化属性测试。
+- `repo_rules_test.go`:零依赖由机器守;「提交后重跑不产生 git diff」。
+
+新测试当场抓到两个 bug:
+
+1. **hook 契约违规**:`still hook <未知名字>` 走 `return fmt.Errorf` → exit 1,
+   违反「任何情况静默 exit 0」。已改为静默 no-op(插件与 CLI 版本错位不是用户的问题)。
+2. **`observed_at` 接错了时间源(语义级)**:原本取 `time.Now()`,即**跑蒸馏的时刻**。
+   后果是同事今天蒸馏三周前的老 session,产出的 fact 会凭「跑得晚」压掉昨天刚学到的
+   新知识——供替规则的排序键接到了工具运行时间上。改为取 session 自身的最后活动
+   时间(`SessionMeta.LastActivity`:逐行 `timestamp` 取最大,缺失则回落文件 mtime)。
+   连带修 `WriteFact`:RFC3339 是秒精度,带纳秒的时间戳(如 mtime)永远「晚于」自己
+   重新解析后的版本,导致每次重写都伪造一条 supersedes——写入前统一截断到秒。
+
 ### 2026-07-20 — M1 代码侧完成
 
 - `internal/adapter/claudecode/discover.go`:cwd → Claude Code 存储目录编码(`EncodeProjectDir`),`still distill` 不装插件即可自动发现本 repo 历史 session。**首次体验改变:第一分钟就能蒸馏过去几周的工作。**
@@ -58,3 +84,5 @@
 | 2026-07-20 | 先开源,单机+git 免费 / 中央服务收费 | §14;信任、标准采纳、护城河在语料 |
 | 2026-07-20 | 发现走 encoded-cwd 目录但标注 version-fragile,hook 路径优先 | session 上云趋势,at-rest 解析不可长期押注(§11.4) |
 | 2026-07-20 | 近重复检测用 bigram Jaccard 而非嵌入 | 零依赖的 PR 级 tripwire;真正的实体消解留给 research(§10) |
+| 2026-07-20 | 测试按不变量组织,硬规则即规格 | 六条硬规则是正确性定义,不是风格建议;一条不变量一层可执行证据(testing.md) |
+| 2026-07-20 | `observed_at` 取 session 最后活动时间,不取蒸馏时刻 | 供替必须按「知识何时被观察到」排序;按工具运行时间排序会让补蒸历史 session 压掉新知识 |

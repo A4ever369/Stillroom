@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 // SessionMeta is machine/session context lifted from a Claude Code transcript.
@@ -17,6 +18,12 @@ type SessionMeta struct {
 	GitBranch string
 	Version   string
 	Turns     int
+	// LastActivity is when the session itself ended — NOT when it was
+	// distilled. Facts carry this as observed_at so that supersession orders
+	// knowledge by when it was learned; keying on distillation time would let
+	// someone distilling a three-week-old session clobber yesterday's fact
+	// merely by running the tool later.
+	LastActivity time.Time
 }
 
 // Digest is a condensed, prompt-sized rendering of one session used as
@@ -62,6 +69,14 @@ func DigestSession(path string) (Digest, error) {
 	if err := sc.Err(); err != nil {
 		return d, err
 	}
+	if d.Meta.LastActivity.IsZero() {
+		// Older transcripts (and some tool versions) carry no per-line
+		// timestamp; the file's mtime is the best remaining proxy for when
+		// the session ended.
+		if info, err := f.Stat(); err == nil {
+			d.Meta.LastActivity = info.ModTime().UTC()
+		}
+	}
 	d.Text = clip(b.String(), maxDigestBytes)
 	return d, nil
 }
@@ -85,6 +100,14 @@ func absorbMeta(m *SessionMeta, raw map[string]any) {
 	if m.Version == "" {
 		if v, ok := raw["version"].(string); ok {
 			m.Version = v
+		}
+	}
+	// Keep the latest timestamp seen rather than the last one parsed:
+	// transcripts are usually chronological, but resumed sessions and
+	// sidechains are not guaranteed to be.
+	if v, ok := raw["timestamp"].(string); ok {
+		if ts, err := time.Parse(time.RFC3339, v); err == nil && ts.After(m.LastActivity) {
+			m.LastActivity = ts.UTC()
 		}
 	}
 }

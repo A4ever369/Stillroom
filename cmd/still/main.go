@@ -228,6 +228,9 @@ func cmdDistill(args []string) error {
 			SourceRef:         sourceRef(d, p),
 			ExistingFactIDs:   existingIDs,
 			ExistingPlaybooks: existingPbs,
+			// Facts are stamped with when the session happened, not when we
+			// got around to distilling it — see SessionMeta.LastActivity.
+			Now: d.Meta.LastActivity,
 		}
 		fmt.Printf("distilling %s (%d turns)...\n", filepath.Base(p), d.Meta.Turns)
 		prop, err := distill.Run(ctx, distill.ClaudeRunner, d, opts)
@@ -403,7 +406,7 @@ func cmdDoctor() error {
 // user's session — on any problem, exit 0 silently.
 func cmdHook(args []string) error {
 	if len(args) < 1 || args[0] != "session-end" {
-		return fmt.Errorf("unknown hook %q", strings.Join(args, " "))
+		return nil // an unknown hook is a plugin/CLI version skew — not the user's problem
 	}
 	payload, err := io.ReadAll(io.LimitReader(os.Stdin, 1<<20))
 	if err != nil {

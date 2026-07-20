@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // Store is the on-disk layout of the knowledge plane inside a code repo:
@@ -174,6 +175,11 @@ func (s Store) WriteFact(f Fact) error {
 	if err := f.Validate(); err != nil {
 		return err
 	}
+	// Encoding is second-precision (RFC3339), so an in-memory timestamp with
+	// a sub-second component would always compare as newer than its own
+	// re-parsed self — forging a supersedes entry on every rewrite. Normalize
+	// to the stored precision before comparing.
+	f.ObservedAt = f.ObservedAt.Truncate(time.Second)
 	path := filepath.Join(s.FactsDir(), f.Filename())
 	if prev, err := os.ReadFile(path); err == nil {
 		old, perr := ParseFact(prev)
