@@ -51,31 +51,57 @@ func (s Store) Init() error {
 			return err
 		}
 	}
+	// Git does not track empty directories, so a teammate cloning a freshly
+	// adopted repo would get no facts/ or playbooks/ at all and their first
+	// distill would fail on a bare ENOENT. Keep both present in the tree.
+	// (queue/ is gitignored and machine-local, so it needs no keeper.)
+	for _, dir := range []string{s.FactsDir(), s.PlaybooksDir()} {
+		keep := filepath.Join(dir, ".gitkeep")
+		if _, err := os.Stat(keep); os.IsNotExist(err) {
+			if err := os.WriteFile(keep, nil, 0o644); err != nil {
+				return err
+			}
+		}
+	}
 	// Keep the knowledge dirs in git, but never queue/ or .local/: both hold
 	// machine-private state (transcript paths, distillation ledger).
-	// Upgrade-in-place so repos initialized by older versions gain new rules.
-	gitignore := filepath.Join(s.Dir(), ".gitignore")
-	existing, err := os.ReadFile(gitignore)
+	if err := ensureLines(filepath.Join(s.Dir(), ".gitignore"), "queue/", ".local/"); err != nil {
+		return err
+	}
+	// materialized.md is generated, and every teammate regenerates all of it —
+	// so two people distilling in parallel conflict on it every single time,
+	// even when their facts merge cleanly. Union-merge it: git keeps both
+	// sides' lines instead of stopping, and the next `still materialize`
+	// re-renders the canonical, sorted form. Facts themselves are deliberately
+	// NOT union-merged: a genuine disagreement about one fact should stop and
+	// ask a human (docs/design-v2.md §2).
+	return ensureLines(filepath.Join(s.Dir(), ".gitattributes"), "materialized.md merge=union")
+}
+
+// ensureLines appends any missing lines to a config file, creating it if
+// needed. Upgrade-in-place, so repos initialized by older versions gain new
+// rules without the user re-running anything by hand.
+func ensureLines(path string, lines ...string) error {
+	existing, err := os.ReadFile(path)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	content := string(existing)
 	changed := false
-	for _, rule := range []string{"queue/", ".local/"} {
-		if !containsLine(content, rule) {
-			if content != "" && !strings.HasSuffix(content, "\n") {
-				content += "\n"
-			}
-			content += rule + "\n"
-			changed = true
+	for _, line := range lines {
+		if containsLine(content, line) {
+			continue
 		}
-	}
-	if changed {
-		if err := os.WriteFile(gitignore, []byte(content), 0o644); err != nil {
-			return err
+		if content != "" && !strings.HasSuffix(content, "\n") {
+			content += "\n"
 		}
+		content += line + "\n"
+		changed = true
 	}
-	return nil
+	if !changed {
+		return nil
+	}
+	return os.WriteFile(path, []byte(content), 0o644)
 }
 
 func containsLine(content, line string) bool {
@@ -180,6 +206,9 @@ func (s Store) WriteFact(f Fact) error {
 	// re-parsed self — forging a supersedes entry on every rewrite. Normalize
 	// to the stored precision before comparing.
 	f.ObservedAt = f.ObservedAt.Truncate(time.Second)
+	if err := os.MkdirAll(s.FactsDir(), 0o755); err != nil {
+		return err
+	}
 	path := filepath.Join(s.FactsDir(), f.Filename())
 	if prev, err := os.ReadFile(path); err == nil {
 		old, perr := ParseFact(prev)
@@ -199,6 +228,9 @@ func (s Store) WriteFact(f Fact) error {
 // WritePlaybook writes a playbook to its canonical location.
 func (s Store) WritePlaybook(p Playbook) error {
 	if err := p.Validate(); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(s.PlaybooksDir(), 0o755); err != nil {
 		return err
 	}
 	return os.WriteFile(filepath.Join(s.PlaybooksDir(), p.Filename()), p.Encode(), 0o644)

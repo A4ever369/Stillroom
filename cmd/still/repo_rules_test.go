@@ -85,3 +85,25 @@ func (w *world) gitStatus() string {
 	w.t.Helper()
 	return strings.TrimSpace(w.git("status", "--porcelain"))
 }
+
+// conflictedPaths lists files git reports as unmerged.
+func (w *world) conflictedPaths() []string {
+	w.t.Helper()
+	var out []string
+	for _, line := range strings.Split(w.gitStatusAllowingFailure(), "\n") {
+		line = strings.TrimSpace(line)
+		// Porcelain conflict codes: UU, AA, DU, UD, AU, UA, DD.
+		if len(line) > 3 && strings.ContainsAny(line[:2], "U") {
+			out = append(out, strings.TrimSpace(line[2:]))
+		}
+	}
+	return out
+}
+
+// gitStatusAllowingFailure is gitStatus for repos in a conflicted state,
+// where some git invocations exit non-zero by design.
+func (w *world) gitStatusAllowingFailure() string {
+	w.t.Helper()
+	out, _ := exec.Command("git", "-C", w.repo, "status", "--porcelain").CombinedOutput()
+	return string(out)
+}

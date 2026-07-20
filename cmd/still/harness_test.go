@@ -63,10 +63,37 @@ func newWorld(t *testing.T) *world {
 			t.Fatal(err)
 		}
 	}
-	if out, err := exec.Command("git", "-C", w.repo, "init", "-q").CombinedOutput(); err != nil {
+	// -b main pins the branch name so merge tests do not depend on the
+	// host's init.defaultBranch.
+	if out, err := exec.Command("git", "-C", w.repo, "init", "-q", "-b", "main").CombinedOutput(); err != nil {
 		t.Fatalf("git init: %v\n%s", err, out)
 	}
 	return w
+}
+
+// clone produces a second working copy of this world's repo, as a teammate
+// would have. It shares the fake toolchain but gets its own repo path — and
+// therefore its own session-discovery directory, since discovery is keyed on
+// the encoded cwd.
+func (w *world) clone(name string) *world {
+	w.t.Helper()
+	dst := filepath.Join(filepath.Dir(w.repo), name)
+	if out, err := exec.Command("git", "clone", "-q", w.repo, dst).CombinedOutput(); err != nil {
+		w.t.Fatalf("git clone: %v\n%s", err, out)
+	}
+	return &world{t: w.t, repo: dst, claudeHome: w.claudeHome, binDir: w.binDir}
+}
+
+// pullFrom merges another world's main branch, returning the merge output and
+// whether git reported a conflict.
+func (w *world) pullFrom(other *world) (string, bool) {
+	w.t.Helper()
+	out, err := exec.Command("git", "-C", w.repo,
+		"-c", "user.email=test@stillroom.invalid",
+		"-c", "user.name=stillroom test",
+		"pull", "--no-rebase", "-q", other.repo, "main",
+	).CombinedOutput()
+	return string(out), err != nil
 }
 
 type result struct {

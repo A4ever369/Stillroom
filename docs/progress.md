@@ -15,6 +15,29 @@
 
 ## 变更日志
 
+### 2026-07-20 — L4 融合场景:核心赌注被验证,同时炸出两个 bug
+
+`cmd/still/fusion_test.go`:两个 clone 各自蒸馏 → `git merge`,直接验证
+design-v2 §2「一个 fact 一个文件 = git 目录合并就是融合算法」。
+
+**赌注成立**:不相交的知识自动合并,两条 fact 都活下来;两边改同一条 fact 时
+照样冲突——这是对的,真正的分歧就该停下来等人裁决——且冲突严格局限在那一个
+文件里,其余 fact 照常合并,`still status` 在冲突态下仍可用。
+
+但这条测试炸出两个 bug:
+
+3. **生成物必然冲突**:`materialized.md` 是整份重新渲染的,双方并行蒸馏 →
+   **每一次都冲突**,哪怕 fact 本身合得干干净净。事实平面的赌注是对的,坏在旁边
+   那个生成物上。解法:`init` 写入 `.team-context/.gitattributes` 声明
+   `materialized.md merge=union`——union 是 git **内置**驱动,随仓库提交、每个
+   clone 白拿、无需任何 per-clone 配置;双方新增的行都保留,下次
+   `still materialize` 按确定性顺序重渲归位。fact 本身**刻意不** union:一条
+   fact 上的真实分歧必须停下来问人。
+4. **空目录不进 git → 新人 onboarding 崩**:`init` 建的 `facts/`、`playbooks/`
+   是空目录,git 不跟踪,队友 clone 下来根本没有这两个目录,**第一次 distill 直接
+   崩在裸 ENOENT 上**。修:`init` 写 `.gitkeep`,且 `WriteFact`/`WritePlaybook`
+   写前 `MkdirAll` 兜底。
+
 ### 2026-07-20 — 测试方案落地(第一批)+ 两个真 bug
 
 测试方案见 `docs/testing.md`:按**不变量**而非按包组织,分 L0–L5 六层,除
@@ -86,3 +109,4 @@
 | 2026-07-20 | 近重复检测用 bigram Jaccard 而非嵌入 | 零依赖的 PR 级 tripwire;真正的实体消解留给 research(§10) |
 | 2026-07-20 | 测试按不变量组织,硬规则即规格 | 六条硬规则是正确性定义,不是风格建议;一条不变量一层可执行证据(testing.md) |
 | 2026-07-20 | `observed_at` 取 session 最后活动时间,不取蒸馏时刻 | 供替必须按「知识何时被观察到」排序;按工具运行时间排序会让补蒸历史 session 压掉新知识 |
+| 2026-07-20 | `materialized.md` 用 union 合并,fact 本身不用 | 生成物的并行重渲是必然冲突且无信息量;fact 上的分歧则必须停下来问人(§2) |
