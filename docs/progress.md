@@ -15,6 +15,17 @@
 
 ## 变更日志
 
+### 2026-07-21 — L1 覆盖率补齐到 ≥85%(每个 internal 包)
+
+按 testing.md L1 目标补错误路径:`ir`(`store_test.go`:`Exists`、`Init`/
+`ensureLines` 升级就地、`LoadPlaybooks`/`WritePlaybook` 往返与坏文件隔离、
+`SortFacts` 确定性)、`distill`(`prompt_apply_test.go`:`BuildPrompt` 注入分支、
+`Run` 的 Now 缺省与错误传播、`Apply` 写失败中止)、`queue`(Enqueue 建目录失败、
+List 跳过非 .path)、`materialize`(坏 fact 文件渲染成警告而非中止、import 追加
+到无换行结尾文件不粘连)。结果:redact 100 / queue 92 / ledger 89 / ir 89 /
+materialize 87 / claudecode 86 / distill 85。`cmd/still` 的 0% 是黑盒子进程测不计数,
+逻辑由 L3 实测。
+
 ### 2026-07-21 — L2 fuzz 落地 + nightly CI + 一次"假挂起"的排查
 
 四个 fuzz target 落地(容错解析不变量):`FuzzParseProposal`(distill)、

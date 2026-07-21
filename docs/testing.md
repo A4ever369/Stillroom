@@ -30,11 +30,14 @@
 
 ### L1 单元测试(已有,补齐)
 
-现状覆盖率:redact 100%,ledger 89%,materialize 83%,queue 83%,
-claudecode 79%,distill 78%,ir 70%,**cmd/still 0%**。
+**目标已达成**:每个 internal 包 ≥ 85%——redact 100%,queue 92%,ledger 89%,
+ir 89%,materialize 87%,claudecode 86%,distill 85%。补齐重点在 `ir`(store 的
+错误路径:`Exists`/`LoadPlaybooks`/`WritePlaybook`/`ensureLines` 升级、`SortFacts`)
+与 `distill`(`BuildPrompt` 注入分支、`Run` 错误传播、`Apply` 写失败),另加 queue
+的错误分支与 materialize 的坏文件警告/import 追加分支。
 
-补齐目标:每个 internal 包 ≥ 85%,重点补 `ir`(store 的错误路径)和
-`distill`(proposal 解析的畸形输入)。
+`cmd/still` 的 `-cover` 显示 0%,是因为黑盒测试把编译后的 binary 当子进程跑,
+`go test -cover` 量不到——其逻辑由 L3 `harness_test.go` 等实测覆盖,只是不计数。
 
 ### L2 不变量测试(本方案的核心)
 
