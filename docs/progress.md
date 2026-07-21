@@ -15,6 +15,18 @@
 
 ## 变更日志
 
+### 2026-07-21 — L5 蒸馏质量 eval harness 落地(骨架)
+
+`cmd/eval`(非 `_test.go`,`go test`/CI 永不触发,`go build` 编译防腐;`make eval`
+手动跑,花真 token)。每个 case = `testdata/corpus/<name>/{transcript.jsonl,
+expected.md}`。复用生产管线 `DigestSession → distill.Run(ClaudeRunner)` 出
+proposal,再用第二次 `claude -p` 当 LLM-judge 打三轴分(召回/精度/粒度,各 0–5),
+输出打分表 + `eval/last-run.json`,与 `eval/baseline.json` 逐 case 比 delta。
+`make eval-list` 不花 token 列 case。附一个合成 `example-ci-pg-image`(CI 用错
+Postgres 镜像 + 部署顺序坑,10 turns 过 minTurns)只为验证接线;真实语料待 M1。
+**这补上了测试方案的最后一层——L0–L5 结构齐了。** 至此 `BuildPrompt` 的每次改动
+都有可量化的质量回归信号(M1 的核心悬念第一次有了机器化的度量入口)。
+
 ### 2026-07-21 — L1 覆盖率补齐到 ≥85%(每个 internal 包)
 
 按 testing.md L1 目标补错误路径:`ir`(`store_test.go`:`Exists`、`Init`/
