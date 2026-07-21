@@ -15,6 +15,26 @@
 
 ## 变更日志
 
+### 2026-07-21 — L2 fuzz 落地 + nightly CI + 一次"假挂起"的排查
+
+四个 fuzz target 落地(容错解析不变量):`FuzzParseProposal`(distill)、
+`FuzzParseFact`/`FuzzParsePlaybook`(ir)、`FuzzDigestSession`(claudecode)。
+断言:任意输入不 panic;**被接受的输出必须 self-consistent**——fact/playbook
+过 `Validate` 且 `Encode` 是不动点(load/write 两侧对"什么算合法"必须一致),
+proposal 幸存的 fact id 不能逃出目录、Status==active、body 无残留 secret;
+digest 保持 UTF-8、给出 LastActivity、不超预算。全部跑通,**无真实 crasher**。
+
+`.github/workflows/fuzz.yml`:nightly + 手动,四 target 矩阵,`-fuzzminimizetime`
+封顶,crasher 上传成 artifact。
+
+**一次假警报的教训**:`FuzzParseProposal` 反复出现"`execs: N (0/sec)` 卡死几十秒"。
+逐个 benchmark 被测函数(`parseProposal`/`Validate`/`redact.Text`)全是微秒~毫秒级,
+都不是慢路径。SIGQUIT 抓 worker 栈,拿到的"失败输入"直接单跑 **0.01s 通过**——
+是红鲱鱼。真因:Go fuzz 引擎对每条新 interesting 输入**内联最小化**,大输入
+(10KB body)在默认无界最小化预算下把 `execs` 计数器冻住,**看着像挂,其实在缩样本**,
+不是 Stillroom 的 bug。`-fuzzminimizetime` 封顶即恢复正常。redact 用 RE2(线性、
+无灾难性回溯),从一开始就排除了正则爆炸的可能。
+
 ### 2026-07-20 — L4 融合场景:核心赌注被验证,同时炸出两个 bug
 
 `cmd/still/fusion_test.go`:两个 clone 各自蒸馏 → `git merge`,直接验证
@@ -110,3 +130,4 @@ design-v2 §2「一个 fact 一个文件 = git 目录合并就是融合算法」
 | 2026-07-20 | 测试按不变量组织,硬规则即规格 | 六条硬规则是正确性定义,不是风格建议;一条不变量一层可执行证据(testing.md) |
 | 2026-07-20 | `observed_at` 取 session 最后活动时间,不取蒸馏时刻 | 供替必须按「知识何时被观察到」排序;按工具运行时间排序会让补蒸历史 session 压掉新知识 |
 | 2026-07-20 | `materialized.md` 用 union 合并,fact 本身不用 | 生成物的并行重渲是必然冲突且无信息量;fact 上的分歧则必须停下来问人(§2) |
+| 2026-07-21 | fuzz 只进 nightly 且 `-fuzzminimizetime` 封顶,不进 push/PR 门禁 | fuzz 是时间盒探测不是门禁;引擎内联最小化在大输入上会假性卡住,封顶保证 nightly 运行有界可预测 |

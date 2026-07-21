@@ -1,0 +1,51 @@
+name: fuzz
+# Nightly fuzzing of the tolerant-parsing surfaces (docs/testing.md L2).
+# Not on the push/PR path — it is time-boxed, not a gate. A discovered
+# crasher is written under testdata/fuzz/ and uploaded as an artifact so it
+# can be committed as a permanent regression seed.
+on:
+  schedule:
+    - cron: "0 7 * * *" # 07:00 UTC nightly
+  workflow_dispatch:
+    inputs:
+      fuzztime:
+        description: "per-target fuzz duration"
+        default: "5m"
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - pkg: ./internal/distill
+            fn: FuzzParseProposal
+          - pkg: ./internal/ir
+            fn: FuzzParseFact
+          - pkg: ./internal/ir
+            fn: FuzzParsePlaybook
+          - pkg: ./internal/adapter/claudecode
+            fn: FuzzDigestSession
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      # -fuzzminimizetime is capped deliberately: the engine minimizes each
+      # newly-interesting input inline, and on large inputs the default
+      # (unbounded) budget makes the exec counter sit at "0/sec" for tens of
+      # seconds — looks hung, is not. Capping keeps nightly runs bounded.
+      - name: fuzz ${{ matrix.fn }}
+        run: >
+          go test ${{ matrix.pkg }}
+          -run '^$'
+          -fuzz '^${{ matrix.fn }}$'
+          -fuzztime '${{ github.event.inputs.fuzztime || ''5m'' }}'
+          -fuzzminimizetime 30s
+      - name: upload crashers
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crashers-${{ matrix.fn }}
+          path: "**/testdata/fuzz/**"
+          if-no-files-found: ignore
