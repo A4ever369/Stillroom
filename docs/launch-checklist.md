@@ -24,11 +24,10 @@ key-laden sessions and no visible leaks. What remains is mostly mechanical.
 
 ## Safety & correctness — before telling anyone to run it
 
-- [ ] **First-run cost guardrail.** `still distill` with no args distills *every*
-      discovered + queued session, each an unbounded `claude -p` call. A first
-      run over weeks of history can be a surprise bill. Add `distill --limit N`
-      (process the N most recent), print the pending count and an estimate up
-      front, and require an explicit flag past a small threshold.
+- [x] **First-run cost guardrail.** `distill --limit N` processes the N most
+      recent sessions; every run prints the pending count up front ("N session(s)
+      to distill — each is a `claude -p` model call") and suggests `--limit` past
+      a small threshold. (2026-07-22)
 - [ ] **Codex distillation coherence.** Codex sessions are discovered, but
       distillation always shells out to `claude -p` (the only `Runner`). A
       Codex-only user still needs Claude Code installed. Either add a

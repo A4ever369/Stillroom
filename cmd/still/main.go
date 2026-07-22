@@ -76,6 +76,7 @@ Usage:
   still distill --transcript PATH   distill one specific transcript
   still distill --dry-run           show proposals without writing files
   still distill --force             include sessions already distilled before
+  still distill --limit N           distill at most N sessions, newest first
   still materialize                 re-render materialized.md
   still materialize --check         verify materialized.md is current (exit 1 if stale)
   still review --base DIR            print a knowledge diff vs another checkout (for PR bots)
@@ -180,6 +181,18 @@ func pendingSessions(s ir.Store, force bool) ([]string, error) {
 	return out, nil
 }
 
+// sortByMtimeDesc orders transcript paths newest first by file mtime. An
+// unreadable path sorts last rather than aborting the run.
+func sortByMtimeDesc(paths []string) {
+	mtime := func(p string) int64 {
+		if info, err := os.Stat(p); err == nil {
+			return info.ModTime().UnixNano()
+		}
+		return 0
+	}
+	sort.Slice(paths, func(i, j int) bool { return mtime(paths[i]) > mtime(paths[j]) })
+}
+
 // digestSession dispatches a transcript path to the adapter that owns its
 // format. Queued paths carry no tool tag, so the file shape decides.
 func digestSession(path string) (session.Digest, error) {
@@ -194,6 +207,7 @@ func cmdDistill(args []string) error {
 	transcript := fs.String("transcript", "", "distill one specific transcript instead of the queue")
 	dryRun := fs.Bool("dry-run", false, "print the proposal without writing files")
 	force := fs.Bool("force", false, "include sessions the ledger has already seen")
+	limit := fs.Int("limit", 0, "distill at most N sessions this run, newest first (0 = all)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -213,6 +227,20 @@ func cmdDistill(args []string) error {
 		if len(paths) == 0 {
 			fmt.Println("nothing to distill — no queued or newly discovered sessions")
 			return nil
+		}
+		// Newest first, so --limit keeps the most recent (and relevant) work.
+		sortByMtimeDesc(paths)
+		total := len(paths)
+		if *limit > 0 && *limit < total {
+			// A first run can discover weeks of history; each session is a
+			// paid `claude -p` call, so make the cost visible and cappable.
+			fmt.Printf("%d sessions pending; processing the %d most recent (--limit).\n", total, *limit)
+			paths = paths[:*limit]
+		} else {
+			fmt.Printf("%d session(s) to distill — each is a `claude -p` model call.\n", total)
+			if total > 5 {
+				fmt.Println("tip: use --limit N to cap this run to the N most recent.")
+			}
 		}
 	}
 
