@@ -1,5 +1,9 @@
 # Stillroom
 
+[![CI](https://github.com/A4ever369/Stillroom/actions/workflows/ci.yml/badge.svg)](https://github.com/A4ever369/Stillroom/actions/workflows/ci.yml)
+[![Go](https://img.shields.io/badge/Go-1.24-00ADD8?logo=go)](go.mod)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+
 **Distill your team's AI coding sessions into a shared, git-native knowledge base.**
 
 A *stillroom* was the room in a great house where remedies and essences were
@@ -45,8 +49,8 @@ Two design rules make this work:
 ## Quickstart
 
 ```bash
-# build & install
-go build -o bin/still ./cmd/still && cp bin/still ~/bin/   # or your PATH dir
+# install (or grab a prebuilt binary from the Releases page)
+go install github.com/A4ever369/Stillroom/cmd/still@latest   # or: git clone && make still
 
 # in the repo that should accumulate team knowledge
 still init          # creates .team-context/, wires CLAUDE.md import
