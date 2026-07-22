@@ -1,0 +1,57 @@
+name: knowledge-diff
+# The §13 "review parasite": when a PR changes the knowledge plane, comment a
+# plain-language fact/playbook diff so reviewers skim it alongside the code.
+# Uses only first-party actions (checkout, setup-go, github-script) — no
+# third-party dependencies, matching the project's zero-dependency ethos.
+on:
+  pull_request:
+    paths:
+      - ".team-context/facts/**"
+      - ".team-context/playbooks/**"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # need the base commit to diff against
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Materialize the base branch's knowledge into a worktree
+        run: |
+          git worktree add --detach ../base "${{ github.event.pull_request.base.sha }}"
+
+      - name: Render the knowledge diff
+        run: |
+          go build -o /tmp/still ./cmd/still
+          # --head is this checkout (the PR), --base is the target branch.
+          /tmp/still review --base ../base --head . > /tmp/knowledge-diff.md
+          cat /tmp/knowledge-diff.md
+
+      - name: Post or update the PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('/tmp/knowledge-diff.md', 'utf8');
+            const marker = '<!-- stillroom-knowledge-diff -->';
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number,
+            });
+            const mine = comments.find(c => c.body && c.body.includes(marker));
+            if (mine) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: mine.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }

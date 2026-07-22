@@ -21,6 +21,7 @@ into agent context via CLAUDE.md imports.
 | `internal/adapter/codex` | Codex CLI adapter: `rollout-*.jsonl` discovery + digest (same `session.Digest`) |
 | `internal/distill` | prompt build, `claude -p` runner, proposal parse, near-dup check |
 | `internal/materialize` | render materialized.md (active facts only, deterministic) |
+| `internal/review` | semantic knowledge diff → PR-comment markdown (`still review`, §13) |
 | `internal/redact` | secret scrubbing (runs on digest input AND distiller output) |
 | `internal/queue` / `internal/ledger` | hook queue / distilled-session ledger (both machine-private) |
 | `plugin/claude-code` | SessionEnd hook plugin (enqueue only — never calls a model) |

@@ -15,6 +15,23 @@
 
 ## 变更日志
 
+### 2026-07-22 — review 寄生落地:PR 自动评论知识 diff(§13 最后一块)
+
+- **`internal/review`(新)**:纯函数,把两个知识快照(base/head)按 **fact id**
+  做**语义** diff(不是文本 diff),分类 新增/更新/移除,fact 观察前进的标成
+  supersession。`Markdown()` 确定性排序输出,顶部带隐形锚 `<!-- stillroom-knowledge-diff -->`
+  让 bot 就地更新同一条评论而非刷屏。100% 覆盖。
+- **`still review --base DIR [--head DIR]`(新命令)**:head 默认本仓库,base 默认空
+  (首次采纳=全部新增)。永不 fail build,坏文件跳过仍 exit 0。
+- **`.github/workflows/knowledge-diff.yml`(新)**:PR 触及 `.team-context/facts|playbooks`
+  时触发;`git worktree` 拉出 base 分支快照 → `still review` → 用 **first-party**
+  `actions/github-script` 按锚查找并就地更新 PR 评论。零第三方 action,契合零依赖气质。
+- 测试:review 包单测(分类/幂等重写不算 diff/playbook/确定性/全 section 渲染)+
+  cmd 黑盒(`--base/--head` 两 dir 直跑,断言锚 + 新 fact)。
+
+**至此 §13 的 review 寄生闭环成形**:知识变更不再需要独立评审面,搭着团队正常
+PR review 一起看。
+
 ### 2026-07-22 — Codex adapter 落地(第二个源工具)+ digest 类型下沉为 tool-agnostic
 
 M2 路线上的多工具支持迈出第一步:接入 **OpenAI Codex CLI**。
@@ -181,7 +198,7 @@ design-v2 §2「一个 fact 一个文件 = git 目录合并就是融合算法」
 1. **真实 session 蒸馏验证(只有人能做)**:`make still && ./bin/still init && ./bin/still doctor`,然后 `./bin/still distill --dry-run`。真实成色决定 prompt 怎么调(`internal/distill/distill.go` 的 `BuildPrompt`)。这是 M1 的全部悬念。
 2. 依据 1 的结果迭代 prompt / fact 粒度 / minTurns 阈值。
 3. ~~Codex adapter~~ ✅ 2026-07-22 已落地(见变更日志)。下一个 adapter 候选:Cursor。
-4. GitHub Action:PR 上自动评论知识 diff 摘要(review 寄生策略的最后一块,§13)。
+4. ~~GitHub Action:PR 上自动评论知识 diff 摘要~~ ✅ 2026-07-22 已落地(`internal/review` + `knowledge-diff.yml`)。
 5. M2 发射清单:域名(stillroom.dev / .ai)、GitHub org、商标检索、Show HN、回帖 anthropics/claude-code #38536 / #40981。
 
 ## 决策日志(为什么是现在这个样子)

@@ -26,6 +26,7 @@ import (
 	"github.com/0xbeekeeper/stillroom/internal/ledger"
 	"github.com/0xbeekeeper/stillroom/internal/materialize"
 	"github.com/0xbeekeeper/stillroom/internal/queue"
+	"github.com/0xbeekeeper/stillroom/internal/review"
 	"github.com/0xbeekeeper/stillroom/internal/session"
 )
 
@@ -45,6 +46,8 @@ func main() {
 		err = cmdDistill(os.Args[2:])
 	case "materialize":
 		err = cmdMaterialize()
+	case "review":
+		err = cmdReview(os.Args[2:])
 	case "status":
 		err = cmdStatus()
 	case "doctor":
@@ -73,6 +76,7 @@ Usage:
   still distill --dry-run           show proposals without writing files
   still distill --force             include sessions already distilled before
   still materialize                 re-render materialized.md
+  still review --base DIR            print a knowledge diff vs another checkout (for PR bots)
   still status                      knowledge base, queue and discovery overview
   still doctor                      check the environment end to end
   still hook session-end            (internal) called by the Claude Code plugin
@@ -338,6 +342,49 @@ func cmdMaterialize() error {
 	}
 	fmt.Println("materialized:", summary)
 	return nil
+}
+
+// cmdReview prints a human-readable knowledge diff (the §13 "review parasite"
+// summary) to stdout. It compares two knowledge-base roots: --head (default:
+// this repo) against --base (default: empty, i.e. everything is new). A CI
+// workflow points --base at a checkout of the target branch and posts the
+// output as a PR comment. It never fails a build: a bad snapshot is reported
+// but still exits 0.
+func cmdReview(args []string) error {
+	fs := flag.NewFlagSet("review", flag.ExitOnError)
+	baseDir := fs.String("base", "", "knowledge-base root to compare against (default: empty)")
+	headDir := fs.String("head", "", "knowledge-base root under review (default: this repo)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	var head review.Snapshot
+	if *headDir != "" {
+		head = loadSnapshot(ir.Store{Root: *headDir})
+	} else {
+		s, err := mustStore()
+		if err != nil {
+			return err
+		}
+		head = loadSnapshot(s)
+	}
+
+	var base review.Snapshot
+	if *baseDir != "" {
+		base = loadSnapshot(ir.Store{Root: *baseDir})
+	}
+
+	fmt.Print(review.Diff(base, head).Markdown())
+	return nil
+}
+
+// loadSnapshot reads a store's active knowledge. Unparseable files are skipped
+// (their warnings surface in materialize/status, not here) so a review comment
+// is never blocked by one bad merge.
+func loadSnapshot(s ir.Store) review.Snapshot {
+	facts, _, _ := s.LoadFacts()
+	pbs, _, _ := s.LoadPlaybooks()
+	return review.Snapshot{Facts: facts, Playbooks: pbs}
 }
 
 func cmdStatus() error {
