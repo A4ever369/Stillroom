@@ -67,6 +67,10 @@ simply starts smarter.
 Codex** automatically — a second tool is just a second adapter, and the
 distilled knowledge is tool-agnostic once it lands.
 
+> **Note:** distillation itself currently runs through `claude -p`, so the
+> Claude Code CLI must be installed and authenticated even to distill Codex
+> sessions. A native Codex runner is on the roadmap.
+
 ## Reviewing knowledge in the PR
 
 Knowledge changes don't need a separate review surface — they ride your

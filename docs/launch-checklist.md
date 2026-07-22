@@ -28,11 +28,11 @@ key-laden sessions and no visible leaks. What remains is mostly mechanical.
       recent sessions; every run prints the pending count up front ("N session(s)
       to distill — each is a `claude -p` model call") and suggests `--limit` past
       a small threshold. (2026-07-22)
-- [ ] **Codex distillation coherence.** Codex sessions are discovered, but
-      distillation always shells out to `claude -p` (the only `Runner`). A
-      Codex-only user still needs Claude Code installed. Either add a
-      `CodexRunner` (headless `codex exec`) or state the dependency plainly in
-      the README so it isn't a surprise.
+- [~] **Codex distillation coherence.** Codex sessions are discovered, but
+      distillation always shells out to `claude -p` (the only `Runner`), so a
+      Codex-only user still needs Claude Code. Documented plainly in the README
+      for now (2026-07-22); a native `CodexRunner` (headless `codex exec`)
+      remains a roadmap follow-up.
 - [ ] **Document the redaction boundary honestly.** Redaction is conservative,
       regex-based, and scrubs credential *shapes*, not confidential *content*.
       The knowledge base is committed and shared, so the PR review is the real
