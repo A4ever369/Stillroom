@@ -26,7 +26,7 @@ into agent context via CLAUDE.md imports.
 | `internal/queue` / `internal/ledger` | hook queue / distilled-session ledger (both machine-private) |
 | `plugin/claude-code` | SessionEnd hook plugin (enqueue only — never calls a model) |
 
-Design doc: `docs/design-v2.md` (两平面架构、融合语义、路线图).
+Design doc: `docs/design-v2.md` (two-plane architecture, fusion semantics, roadmap).
 Progress ledger: `docs/progress.md` — **append an entry there when you complete
 a milestone or make a direction-level decision.**
 

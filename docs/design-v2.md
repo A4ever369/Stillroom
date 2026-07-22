@@ -1,318 +1,320 @@
-# Traces Git —— 设计 v2:两平面架构与 git 底座
+# Traces Git — Design v2: Two-Plane Architecture and a Git Foundation
 
-> 取代关系:本文档是 `session-ir-research-brief.md`(研究简报)和 `architecture.md`(v1 蓝图)之后的第三份文档,**收敛为可实施设计**。与前两份的差异见 §9。
+> Supersession: this document is the third after `session-ir-research-brief.md` (the research brief) and `architecture.md` (the v1 blueprint), and it **converges on an implementable design**. See §9 for how it differs from the first two.
 >
-> 一句话:证据不可融合、知识可融合——把系统沿这条线切成两个平面,知识平面直接用真实 git repo 承载,让可融合单元与 git 的可融合单元重合,merge/review/权限/历史全部白拿。
+> In one sentence: evidence is not fusible, knowledge is fusible — cut the system along that line into two planes, carry the knowledge plane directly on a real git repo so that the fusible unit coincides with git's fusible unit, and get merge / review / permissions / history all for free.
 
 ---
 
-## 0. 问题重述
+## 0. Restating the Problem
 
-团队协作时,每个人和自己的 coding agent(Claude Code / Codex / Cursor…)的对话、经验、历史,要能像代码库一样被维护和传递:我能把我的经验"push"出去,同事能"pull"下来**融合**进自己的上下文,带着融合后的记忆继续和 AI 干活。不是 session 覆盖,是融合。
+When a team collaborates, each person's conversations, experience, and history with their own coding agent (Claude Code / Codex / Cursor…) should be maintainable and transferable like a codebase: I can "push" my experience out, a teammate can "pull" it down and **fuse** it into their own context, then keep working with the AI carrying the fused memory. Not session overwrite — fusion.
 
-核心矛盾:**对话本身不可 merge**(两段线性对话没有有意义的合并结果),但**从对话里学到的东西可以 merge**。整个设计围绕这一条展开。
+The core tension: **conversations themselves are not mergeable** (two linear conversations have no meaningful merge result), but **what you learn from a conversation is mergeable**. The whole design unfolds from this one point.
 
-## 1. 两平面架构
+## 1. Two-Plane Architecture
 
 ```
-┌─ 证据平面(Evidence Plane)────────────────────────────┐
-│  原始 session 转录(jsonl 等),append-only,内容寻址,   │
-│  永不 merge,只被引用。                                  │
-│  价值 = 回放 / 溯源 / 审计 / fork 的种子 / 深挖细节        │
+┌─ Evidence Plane ─────────────────────────────────────┐
+│  Raw session transcripts (jsonl, etc.), append-only,  │
+│  content-addressed, never merged, only referenced.    │
+│  Value = replay / provenance / audit / fork seed /     │
+│  digging into detail                                   │
 └────────────────────┬─────────────────────────────────┘
-                     │ distill(蒸馏:本地跑,产出 diff,人审)
+                     │ distill (runs locally, produces a diff, human review)
                      ▼
-┌─ 知识平面(Knowledge Plane)───────────────────────────┐
-│  facts(事实)+ playbooks(配方)+ skills,               │
-│  小文本文件,存放于一个真实 git repo("团队知识库")。      │
-│  可 merge、可 review、可版本化、可 blame。                │
-│  这是团队真正协作维护的对象。                              │
+┌─ Knowledge Plane ────────────────────────────────────┐
+│  facts + playbooks + skills,                          │
+│  small text files, stored in a real git repo          │
+│  ("team knowledge base").                             │
+│  Mergeable, reviewable, versionable, blameable.        │
+│  This is what the team actually collaborates on.       │
 └────────────────────┬─────────────────────────────────┘
-                     │ materialize(物化:渲染成工具可注入形态)
+                     │ materialize (render into a tool-injectable form)
                      ▼
         CLAUDE.md / AGENTS.md / memory/ / skills/ / MCP resources
                      │
                      ▼
-          任何工具的新 session 天然带上团队融合后的记忆
+     Any tool's new session naturally carries the team's fused memory
 ```
 
-设计不变式:
+Design invariants:
 
-1. **融合只发生在知识平面**。证据平面只累积、只引用,从不参与 merge。
-2. **知识平面的每一条内容都必须能指回证据平面**(provenance),但反向不要求——允许存在未蒸馏的证据。
-3. **共享边界 = 知识平面**。默认只有蒸馏物进入团队库;raw transcript 留在本机或私有证据库,共享是显式动作。
+1. **Fusion happens only in the knowledge plane.** The evidence plane only accumulates and is only referenced; it never participates in merge.
+2. **Every piece of content in the knowledge plane must point back to the evidence plane** (provenance), but not the reverse — undistilled evidence is allowed to exist.
+3. **The sharing boundary = the knowledge plane.** By default only distilled artifacts enter the team repo; raw transcripts stay on the local machine or in a private evidence store, and sharing is an explicit action.
 
-## 2. 关键决策:知识平面用真实 git repo 承载
+## 2. Key Decision: Carry the Knowledge Plane on a Real Git Repo
 
-**可融合单元 = git 的可融合单元:一个 fact 一个文件,一个 playbook 主题一个文件。**
+**The fusible unit = git's fusible unit: one file per fact, one file per playbook topic.**
 
-这个映射买到了什么:
+What this mapping buys us:
 
-| 需求 | git 原生给的 |
+| Need | What git gives natively |
 | --- | --- |
-| 融合:两人各自学到不同事实 | 目录级 merge = 集合并集,零冲突 |
-| 冲突:同一事实两个值 | 同文件冲突 → 恰好就是需要人裁决的场景 |
-| 共享前人工确认 / 脱敏预览 | PR review 流程,现成 |
-| "这条经验谁在哪次 session 学到的" | `git blame` + frontmatter provenance |
-| 回滚 / 历史 / 分支 / 团队权限 | git 原生 |
+| Fusion: two people each learn different facts | Directory-level merge = set union, zero conflict |
+| Conflict: one fact, two values | Same-file conflict → exactly the case that needs a human to adjudicate |
+| Human confirmation / redaction preview before sharing | PR review flow, off the shelf |
+| "Who learned this in which session" | `git blame` + frontmatter provenance |
+| Rollback / history / branching / team permissions | Native git |
 
-**推论**:v1 蓝图里的自建 merge 引擎、trace 级 grant 服务、ingest API 在 MVP 阶段全部不需要。它们不是被否定,而是被推迟到证据平面和企业形态需要时(§8 Phase 2+)。
+**Corollary**: the self-built merge engine, trace-level grant service, and ingest API from the v1 blueprint are all unnecessary at the MVP stage. They aren't rejected — they're deferred until the evidence plane and the enterprise form require them (§8 Phase 2+).
 
-诚实的取舍:
+Honest trade-offs:
 
-- 权限粒度 = repo 粒度,没有 trace 级 grant。初期一个团队一个知识库,够用;细粒度是 Phase 2 上服务端的理由。
-- 语义搜索初期没有。物化后的全文本身就在 agent 的上下文/工作区里,agent 自己 grep 已覆盖大部分场景;pgvector 检索属于证据平面服务(Phase 2)。
-- LLM 参与的 playbook 综合是**非确定性**操作。不假装它是 git 式确定性 merge:综合结果作为一次新 commit 带完整 provenance 存下来,不承诺可重现(见 §5)。
+- Permission granularity = repo granularity; no trace-level grant. Early on, one knowledge base per team is enough; fine granularity is the reason to move to a server side in Phase 2.
+- No semantic search early on. The materialized full text is already in the agent's context/workspace, and the agent grepping on its own covers most cases; pgvector retrieval belongs to the evidence-plane service (Phase 2).
+- LLM-assisted playbook synthesis is a **non-deterministic** operation. We don't pretend it's a git-style deterministic merge: the synthesis result is stored as a new commit with full provenance, and we make no promise of reproducibility (see §5).
 
-## 3. 知识库 repo 布局
+## 3. Knowledge Base Repo Layout
 
 ```
-team-context/                      # 团队知识库(真实 git repo)
+team-context/                      # team knowledge base (real git repo)
 ├── facts/
 │   ├── deploy.acme.db-endpoint.md
 │   ├── build.monorepo.pnpm-quirk.md
-│   └── ...                        # 一个 fact 一个文件,文件名 = 语义键
+│   └── ...                        # one file per fact, filename = semantic key
 ├── playbooks/
 │   ├── customer-onboarding-deploy.md
-│   └── ...                        # 一个主题一个文件
+│   └── ...                        # one file per topic
 ├── skills/
-│   └── ...                        # 晋升后的组织 skill(标准 SKILL.md 结构)
+│   └── ...                        # promoted org skills (standard SKILL.md structure)
 ├── evidence-index/
-│   └── index.jsonl                # 证据指针(trace ref → 存放位置),不含转录本体
+│   └── index.jsonl                # evidence pointers (trace ref → location), no transcript body
 └── .tg/
-    └── config.yaml                # 物化目标、脱敏规则、作用域映射
+    └── config.yaml                # materialize targets, redaction rules, scope mapping
 ```
 
-### 3.1 fact 文件
+### 3.1 Fact File
 
 ```markdown
 ---
-id: deploy.acme.db-endpoint            # 语义键 = 事实身份,同时是文件名
-scope: repo:acme-infra                 # 适用范围(repo / 环境 / 全局)
-observed_at: 2026-07-18T09:30:00+09:00 # 观察时间 —— 时效性语义的载体
-source: trace://allen/a3f9c2/turns/41-58  # 指回证据平面
+id: deploy.acme.db-endpoint            # semantic key = fact identity, also the filename
+scope: repo:acme-infra                 # applicable scope (repo / environment / global)
+observed_at: 2026-07-18T09:30:00+09:00 # observation time — the carrier of recency semantics
+source: trace://allen/a3f9c2/turns/41-58  # points back to the evidence plane
 confidence: high                       # high | medium | low
 status: active                         # active | superseded | disputed
-supersedes: deploy.acme.db-endpoint@2026-05-02   # 可选:覆盖的旧观察
+supersedes: deploy.acme.db-endpoint@2026-05-02   # optional: the older observation it overrides
 ---
-Acme 生产库的入口是 pgbouncer 而非直连,端口 6432,
-直连 5432 会被安全组拦。
+The entry to Acme's production database is pgbouncer, not a direct connection: port 6432.
+A direct connection to 5432 is blocked by the security group.
 ```
 
-要点:
+Key points:
 
-- **`observed_at` 与 `supersedes` 是融合语义的一部分,不是元数据装饰**。事实会过期;没有时效标注的并集只会累积陈旧垃圾。
-- 物化器只注入 `status: active` 的 fact;`superseded` 保留在历史里供追溯;`disputed` 进 review 队列。
-- 正文用自然语言,一条 fact 说一件事,长度以"能独立注入且自明"为限。
+- **`observed_at` and `supersedes` are part of the fusion semantics, not metadata decoration.** Facts expire; a union without recency annotation just accumulates stale garbage.
+- The materializer injects only `status: active` facts; `superseded` ones stay in history for traceability; `disputed` ones go into the review queue.
+- The body is natural language, one fact says one thing, and its length is bounded by "can be injected standalone and is self-explanatory."
 
-### 3.2 playbook 文件
+### 3.2 Playbook File
 
-playbook = 某类任务的可复用配方(昆卡剧本里的"客户上线部署"就是一个 playbook)。结构:适用前提 → 步骤 → 已知坑(链接相关 facts)→ 证据链接(源 trace)。playbook 是蒸馏的高阶产物,一般由一次成功 session 首建,后续 session 修订。
+A playbook = a reusable recipe for a class of task ("customer onboarding deploy" in the Cuenca script is one playbook). Structure: preconditions → steps → known pitfalls (link related facts) → evidence links (source trace). A playbook is a higher-order product of distillation, usually first created from one successful session and revised by later sessions.
 
-### 3.3 fact 身份(去重)的务实策略
+### 3.3 A Pragmatic Strategy for Fact Identity (Deduplication)
 
-"两条 memory 是不是同一事实"是真正的研究难题(参见研究简报开放问题 2),MVP 不求完美解:
+"Are these two memories the same fact" is a genuine research problem (see the research brief's open question 2); the MVP does not aim for a perfect solution:
 
-1. 蒸馏 LLM 负责提议语义键(`域.对象.属性` 风格 slug),提议前先读现有 facts/ 目录做键对齐;
-2. 合并时用嵌入相似度跑一遍近重复检测,疑似重复标注进 PR 让人裁决;
-3. 键冲突且值不同 → git 冲突 → 人裁决,裁决结果本身成为一次 commit(不会重复裁决,因为 git 有共同祖先)。
+1. The distilling LLM is responsible for proposing the semantic key (a `domain.object.attribute`-style slug), and reads the existing facts/ directory for key alignment before proposing;
+2. At merge time, run near-duplicate detection with embedding similarity once; suspected duplicates are flagged into the PR for a human to adjudicate;
+3. Key collides but values differ → git conflict → human adjudicates, and the adjudication itself becomes a commit (no re-adjudication, because git has a common ancestor).
 
-## 4. 三个要写的组件
+## 4. Three Components to Write
 
-底座交给 git 后,自研面收敛为三件东西。
+With the foundation handed to git, the self-built surface converges to three things.
 
-### 4.1 Distiller(蒸馏器)—— 核心壁垒,唯一的 AI 组件
+### 4.1 Distiller — the Core Moat, the Only AI Component
 
-- 输入:本地 session 存档(Claude Code `~/.claude/projects/<encoded-cwd>/*.jsonl` + memory 目录;Codex `~/.codex/sessions/**`;Cursor store)。
-- 输出:**对知识库 repo 的一个 diff**——新增/更新哪些 fact 文件、修订哪个 playbook,附 provenance 指针。
-- 约束:**必须本地运行**(转录不出机器);产出经脱敏(`redact.*` 可复用)后以 PR/commit 形式提交。
-- 人在环:PR review 就是脱敏预览 + 质量把关。**警惕"蒸馏天然脱敏"的直觉——它可能是反的**:raw transcript 泄密是偶然的,蒸馏后的 fact 是刻意浓缩的("prod 凭证在 vault 的 key X 下"恰恰是蒸馏最想保留的),所以蒸馏层必须过 redact + 人审,一个不能少。
-- 解析侧复用:Multica 已把 15 个 runtime 归一化成统一 turn 形状(`agent.Message`),export 侧 ~80% 现成;区别是要新写 at-rest 静态文件解析(容错 + 版本探测,不硬解)。
+- Input: local session archives (Claude Code `~/.claude/projects/<encoded-cwd>/*.jsonl` + the memory directory; Codex `~/.codex/sessions/**`; the Cursor store).
+- Output: **a diff against the knowledge base repo** — which fact files to add/update, which playbook to revise, with provenance pointers attached.
+- Constraint: **must run locally** (transcripts don't leave the machine); the output is redacted (`redact.*` is reusable) and then submitted as a PR/commit.
+- Human-in-the-loop: PR review is the redaction preview + quality gate. **Beware the intuition that "distillation redacts naturally" — it may be the opposite**: a raw transcript leaks secrets by accident, but a distilled fact is a deliberate condensation ("the prod credential is under key X in the vault" is exactly what distillation most wants to keep), so the distillation layer must pass through redact + human review, with neither omitted.
+- Reuse on the parsing side: Multica already normalizes 15 runtimes into a unified turn shape (`agent.Message`), so the export side is ~80% off the shelf; the difference is that we need to newly write the at-rest static file parsing (tolerant + version-probing, no rigid parsing).
 
-### 4.2 Materializer(物化器)—— 几乎工具无关
+### 4.2 Materializer — Nearly Tool-Agnostic
 
-行业正在收敛到可注入上下文标准:CLAUDE.md / AGENTS.md、memory 目录、skills、MCP resources。物化器把知识库渲染成这套形态:
+The industry is converging on injectable-context standards: CLAUDE.md / AGENTS.md, the memory directory, skills, MCP resources. The materializer renders the knowledge base into this set of forms:
 
-- 生成一段带标记的 CLAUDE.md/AGENTS.md 区块(按 `scope` 过滤当前 repo 相关的 facts);
-- 落 memory 文件与 skills 目录;
-- (Phase 2)以 MCP resource 形式动态供给。
+- Generate a marked CLAUDE.md/AGENTS.md block (filtering facts relevant to the current repo by `scope`);
+- Write memory files and the skills directory;
+- (Phase 2) supply dynamically as MCP resources.
 
-**成本不对称是本设计的重要红利:import 侧一套通吃,逐工具的苦活只在 export 解析侧。**适配器矩阵砍半。
+**The cost asymmetry is an important dividend of this design: the import side is one-size-fits-all, and the per-tool grunt work is only on the export parsing side.** The adapter matrix is cut in half.
 
-### 4.3 Evidence store(证据库)
+### 4.3 Evidence Store
 
-- 转录大(实测单会话 10–40MB),不进 git;放对象存储(自托管 MinIO 即可),内容寻址,`source:` 指针指进去。
-- MVP 可以更薄:先只在 `evidence-index/index.jsonl` 里登记指针(机器 + session id + 内容 hash),转录留在原机;回放/检索需求出现时再集中上传。
-- Phase 2 在其上建:回放 UI(复用 `buildTimeline()`)、pgvector 语义搜索、MCP `search_traces / read_trace / fork_trace`。
+- Transcripts are large (measured 10–40MB per session), so they don't go into git; put them in object storage (self-hosted MinIO is fine), content-addressed, with the `source:` pointer pointing into it.
+- The MVP can be even thinner: first just register pointers in `evidence-index/index.jsonl` (machine + session id + content hash), leave the transcript on the original machine, and upload centrally later when replay/retrieval needs arise.
+- Phase 2 builds on top: replay UI (reusing `buildTimeline()`), pgvector semantic search, MCP `search_traces / read_trace / fork_trace`.
 
-## 5. 融合语义(按层,最终版)
+## 5. Fusion Semantics (by Layer, Final Version)
 
-| 层 | 融合方式 | 冲突处理 | 确定性 |
+| Layer | Fusion method | Conflict handling | Determinism |
 | --- | --- | --- | --- |
-| facts | 文件级集合并集;同源同键按 `observed_at` 覆盖(supersede) | 异源同键异值 → git 冲突 → 人裁决 | 确定性(git) |
-| playbooks | LLM 综合修订,产出为新 commit | 语义矛盾标注给人 | **非确定性,靠 commit 固化** |
-| skills | 按名去重、版本递增 | 版本分叉走 PR | 确定性 |
-| 转录(证据) | **永不 merge**;只作为 provenance 被引用 | 无 | — |
-| 代码/产物 | 真 git merge(在代码 repo 里) | git 冲突流程 | 确定性 |
+| facts | File-level set union; same-source same-key overridden by `observed_at` (supersede) | Different-source same-key different-value → git conflict → human adjudicates | Deterministic (git) |
+| playbooks | LLM synthesis/revision, produced as a new commit | Semantic contradictions flagged for a human | **Non-deterministic, fixed by the commit** |
+| skills | Dedup by name, version increment | Version fork goes through a PR | Deterministic |
+| transcripts (evidence) | **Never merged**; only referenced as provenance | none | — |
+| code/artifacts | Real git merge (in the code repo) | git conflict flow | Deterministic |
 
-与 git 类比的边界要说清楚:git merge 的魔力在于确定性、可重现、笨,语义负担全推给人。facts 层保住了这个性质;playbooks 层做不到(LLM 综合),所以**不把它伪装成 merge,而是当作一次 agentic 修订操作**,结果 commit 下来,provenance 记全(输入了哪些源 trace / 哪些旧版本)。
+The boundary of the analogy to git must be stated clearly: the magic of git merge lies in being deterministic, reproducible, and dumb, pushing all the semantic burden onto the human. The facts layer preserves this property; the playbooks layer cannot (LLM synthesis), so **we don't disguise it as a merge, but treat it as an agentic revision operation** whose result is committed and whose provenance is fully recorded (which source traces / which old versions were fed in).
 
-## 6. `tg` CLI 命令面
+## 6. The `tg` CLI Command Surface
 
 ```bash
-tg init                  # 关联团队知识库 repo + 本地工具存档路径
-tg distill [--session S] # 本地蒸馏:session → 知识库 diff(含脱敏),开 PR 或本地 commit
-tg push                  # = git push(语义糖:推知识库 + 上传新登记的证据指针)
-tg pull                  # = git pull + 自动 materialize
-tg materialize [--repo R]# 知识库 → CLAUDE.md 区块 / memory / skills(按 scope 过滤)
-tg status                # 本地有哪些未蒸馏 session、知识库落后多少
-tg evidence push <ref>   # 显式上传某段转录到证据库(默认不传)
+tg init                  # associate the team knowledge base repo + local tool archive paths
+tg distill [--session S] # local distill: session → knowledge base diff (with redaction), open a PR or local commit
+tg push                  # = git push (syntactic sugar: push the knowledge base + upload newly registered evidence pointers)
+tg pull                  # = git pull + auto materialize
+tg materialize [--repo R]# knowledge base → CLAUDE.md block / memory / skills (filtered by scope)
+tg status                # which local sessions are undistilled, how far behind the knowledge base is
+tg evidence push <ref>   # explicitly upload a transcript to the evidence store (not uploaded by default)
 ```
 
-工作流(昆卡剧本,MVP 版):
+Workflow (the Cuenca script, MVP version):
 
-1. Allen 部署完客户环境 → `tg distill` 本地生成 PR:1 个 playbook + 若干 facts,全部带 provenance;
-2. Allen 扫一眼脱敏预览,merge PR;
-3. 昆卡 `tg pull`(或她的工具通过钩子自动做)→ 物化器把 playbook 和相关 facts 注入她的 CLAUDE.md/memory;
-4. 她的 Claude Code 照配方干完;卡住时(Phase 2)`read_trace` 翻 Allen 的原始证据。
-5. **Allen 全程没被打扰;且 MVP 闭环中没有任何一个自建服务是必需的——一个 CLI + 一个 git repo。**
+1. Allen finishes deploying a customer environment → `tg distill` locally generates a PR: 1 playbook + a few facts, all with provenance;
+2. Allen glances at the redaction preview and merges the PR;
+3. Cuenca runs `tg pull` (or her tool does it automatically via a hook) → the materializer injects the playbook and related facts into her CLAUDE.md/memory;
+4. Her Claude Code follows the recipe to completion; when stuck (Phase 2) she uses `read_trace` to page through Allen's raw evidence.
+5. **Allen is never interrupted; and in the MVP loop not a single self-built service is required — one CLI + one git repo.**
 
-## 7. 承重假设与验证顺序
+## 7. Load-Bearing Assumptions and Validation Order
 
-**第一承重假设是"再物化有效",不是"融合可行"**:蒸馏后的上下文注入新 session,真的能让另一个人(的 AI)接着干。融合的价值依赖于它——若注入无效,merge 得再漂亮也没意义。
+**The first load-bearing assumption is "re-materialization works," not "fusion is feasible"**: injecting the distilled context into a new session really lets another person (their AI) pick up where the work left off. The value of fusion depends on it — if injection doesn't work, no matter how beautiful the merge, it's meaningless.
 
-验证顺序(对研究简报 §9 的顺序调整):
+Validation order (an adjustment to the order in §9 of the research brief):
 
-1. **再物化 PoC(最先)**:拿一次真实 session → `tg distill` → 物化进新 session → 另一人执行同类任务。度量:相对冷启动的 token 消耗、重复探索次数(重新 Read 已知文件)、任务完成质量。
-2. **融合 PoC**:两人对同一环境各自干活 → 各自蒸馏 → git merge 知识库 → 验证并集/覆盖/冲突三种路径,且验收标准是任务级的(融合后的记忆是否让第三人干得更好),不是"打印并集效果"。
-3. 之后再谈证据库集中化、回放、语义搜索、MCP 面、多工具矩阵。
+1. **Re-materialization PoC (first)**: take one real session → `tg distill` → materialize into a new session → have another person perform a similar task. Metrics: token consumption relative to a cold start, number of repeated explorations (re-Reading already-known files), task completion quality.
+2. **Fusion PoC**: two people each work against the same environment → each distills → git merge the knowledge base → validate the three paths of union/override/conflict, and the acceptance criterion is task-level (does the fused memory let a third person work better), not "printing out the union effect."
+3. Only after that do we talk about evidence store centralization, replay, semantic search, the MCP surface, and the multi-tool matrix.
 
-## 8. 路线图
+## 8. Roadmap
 
-- **Phase 1(验证核心假设,~1–2 周量级)**:`tg` CLI(init/distill/materialize/pull/status)+ Claude Code 单工具 export + 团队知识库 repo + PR 工作流。自己团队当第一个用户,跑通昆卡闭环。**交付形态优先做成 Claude Code 插件(hook + skill),而非独立 CLI**——见 §13。
-- **Phase 2(证据平面服务化)**:证据库集中上传、回放 UI、pgvector 语义搜索、MCP server(`search_traces / read_trace / fork_trace`)、Codex/Cursor export。此时 v1 蓝图的 ingest API / tenant 隔离 / grant 模型按原设计启用。
-- **Phase 3(企业形态)**:SaaS 多租户加固(RLS、配额、计费)、trace 级细粒度 grant、组织 skill 晋升管线(fact/playbook → skill,人在环)、license 门。
+- **Phase 1 (validate the core assumption, ~1–2 weeks in scale)**: the `tg` CLI (init/distill/materialize/pull/status) + Claude Code single-tool export + the team knowledge base repo + the PR workflow. Use our own team as the first user and run the Cuenca loop end to end. **The delivery form should be a Claude Code plugin first (hook + skill), not a standalone CLI** — see §13.
+- **Phase 2 (turn the evidence plane into a service)**: centralized evidence store upload, replay UI, pgvector semantic search, MCP server (`search_traces / read_trace / fork_trace`), Codex/Cursor export. At this point the v1 blueprint's ingest API / tenant isolation / grant model are enabled as originally designed.
+- **Phase 3 (enterprise form)**: SaaS multi-tenant hardening (RLS, quotas, billing), trace-level fine-grained grant, the org skill promotion pipeline (fact/playbook → skill, human-in-the-loop), a license gate.
 
-## 9. 与前两份文档的差异对照
+## 9. Comparison with the First Two Documents
 
-| 维度 | v1 蓝图 / 研究简报 | 本设计(v2) | 理由 |
+| Dimension | v1 blueprint / research brief | This design (v2) | Rationale |
 | --- | --- | --- | --- |
-| 首个底座 | 自建中央服务(ingest + PG + grant) | 真实 git repo | merge/review/权限/历史白拿;先验证假设再建服务 |
-| IR 分层 | SessionIR 单对象五层 | 拆成两平面;turns 层归证据平面 | "IR 可 merge"只对蒸馏层成立,合并到一个对象里会诱导对 turns 做 merge |
-| 验证顺序 | 融合 PoC 最先 | 再物化 PoC 最先 | 融合价值依赖再物化有效;承重假设先验证 |
-| fact 原语 | 事实集合,无时效 | + observed_at / supersedes / status / scope | 事实会过期;无时效的并集累积陈旧垃圾 |
-| merge 确定性 | 未区分 | facts 确定性 / playbooks 显式非确定性 | 保住 git 信任模型的同时诚实对待 LLM 综合 |
-| 蒸馏与隐私 | 蒸馏视作天然脱敏 | 蒸馏视作**浓缩器**,必须 redact + 人审 | 蒸馏保留的恰是高价值敏感信息 |
-| 适配器成本 | export/import 双向逐工具 | import 侧近乎工具无关(CLAUDE.md/skills 标准) | 行业收敛红利,矩阵砍半 |
-| lineage | 单父(ForkedFromTraceID) | git 多父 commit 原生支持 | merge 必然多父;避免日后改 schema |
+| First foundation | Self-built central service (ingest + PG + grant) | Real git repo | merge/review/permissions/history for free; validate the assumption before building services |
+| IR layering | SessionIR as one object with five layers | Split into two planes; the turns layer goes to the evidence plane | "IR is mergeable" holds only for the distillation layer; merging into one object would tempt merging the turns |
+| Validation order | Fusion PoC first | Re-materialization PoC first | Fusion's value depends on re-materialization working; validate the load-bearing assumption first |
+| fact primitive | A set of facts, no recency | + observed_at / supersedes / status / scope | Facts expire; a union without recency accumulates stale garbage |
+| merge determinism | Undifferentiated | facts deterministic / playbooks explicitly non-deterministic | Preserve git's trust model while being honest about LLM synthesis |
+| distillation and privacy | Distillation seen as natural redaction | Distillation seen as a **condenser**, must go through redact + human review | What distillation keeps is precisely the high-value sensitive information |
+| adapter cost | export/import bidirectional, per tool | The import side is nearly tool-agnostic (CLAUDE.md/skills standards) | An industry-convergence dividend, the matrix cut in half |
+| lineage | Single parent (ForkedFromTraceID) | git multi-parent commits natively supported | Merge is inherently multi-parent; avoids changing the schema later |
 
-v1 蓝图的护城河积木(15-runtime 归一化、redact、buildTimeline、grant 模型、pgvector、自托管通道)全部保留,只是启用时点后移到 Phase 2/3。
+The v1 blueprint's moat building blocks (15-runtime normalization, redact, buildTimeline, the grant model, pgvector, the self-hosted channel) are all retained; only their enablement point is pushed back to Phase 2/3.
 
-## 10. 开放问题(留给 research,承接研究简报 §7)
+## 10. Open Questions (Left for Research, Continuing §7 of the Research Brief)
 
-保留研究简报的 10 个开放问题,叠加三个文献锚点,避免从零摸索:
+Retaining the research brief's 10 open questions, plus three literature anchors, to avoid groping from scratch:
 
-1. fact 身份与去重 ≈ entity resolution + truth discovery / knowledge fusion(Google Knowledge Vault 一系),以及 agent memory 系统的去重实践(MemGPT/Letta、Zep Graphiti、Mem0);
-2. facts 层收敛语义 ≈ CRDT 文献(grow-only set + 墓碑 + LWW);本设计选择 git 三方 merge 路线,但若 Phase 2 走服务端实时融合,CRDT 是备选;
-3. 再物化保真度评估:任务延续基准(同 repo 任务对,冷启动 vs 注入蒸馏上下文),指标 = 完成 token 数、冗余工具调用、正确率、人评"像不像接着原作者干"。
+1. Fact identity and deduplication ≈ entity resolution + truth discovery / knowledge fusion (the Google Knowledge Vault lineage), as well as the deduplication practices of agent memory systems (MemGPT/Letta, Zep Graphiti, Mem0);
+2. The convergence semantics of the facts layer ≈ CRDT literature (grow-only set + tombstones + LWW); this design chooses the git three-way merge route, but if Phase 2 goes to server-side real-time fusion, CRDT is the fallback;
+3. Re-materialization fidelity evaluation: task-continuation benchmarks (same-repo task pairs, cold start vs. injected distilled context), metrics = tokens to completion, redundant tool calls, correctness rate, and human rating of "does it feel like continuing the original author's work."
 
 ---
 
-## 11. 战略定位:总的 infra,不是 converter
+## 11. Strategic Positioning: General Infra, Not a Converter
 
-> 定位一句话:**跨工具的团队人机协作知识 system-of-record**。converter 是楔子和获客入口,是 feature 不是 identity。
+> Positioning in one sentence: **a cross-tool team human-AI collaboration knowledge system-of-record**. The converter is the wedge and the acquisition entry point — it's a feature, not an identity.
 
-### 11.1 为什么中立层位置成立
+### 11.1 Why the Neutral-Layer Position Holds
 
-大厂互不兼容是结构性的:Anthropic 不会写 Codex 的 session 解析器,OpenAI 不会替 Claude Code 做记忆导入。厂商互斥的地方就是中立层的生存空间——先例:Terraform 之于各家云、Plaid 之于银行、Segment 之于分析工具、OpenRouter 之于模型 API。且多工具混用是团队常态、个人工具切换周期以月计:**工具 churn 越快,"知识跟人和团队走、不跟工具走"的价值越大**。留存故事恰好建立在工具生态的不稳定上。
+The mutual incompatibility of the big players is structural: Anthropic won't write a session parser for Codex, and OpenAI won't build memory import for Claude Code. Wherever the vendors are mutually exclusive is where the neutral layer can survive — precedents: Terraform for the various clouds, Plaid for banks, Segment for analytics tools, OpenRouter for model APIs. And mixing multiple tools is the norm for teams, while an individual's tool-switching cycle is measured in months: **the faster the tool churn, the greater the value of "knowledge travels with the person and the team, not with the tool."** The retention story is built precisely on the instability of the tool ecosystem.
 
-### 11.2 三层价值梯度(资源与叙事都按此分配)
+### 11.2 Three-Tier Value Gradient (Resources and Narrative Are Allocated Along It)
 
-1. **Adapters(捕获/转换层)**:苦活不是难活,两周可复制,且标准化会持续摊平其价值(AGENTS.md 已商品化注入侧)。→ **策略:全部开源**,主动当事实标准,让社区维护格式漂移(最烦的部分),商品化竞争对手的捕获层(commoditize the complement,Terraform providers 打法)。
-2. **知识平面(产品核心)**:fact 模型、时效语义、融合、provenance、PR review 工作流。自研壁垒所在,商业化载体。
-3. **知识语料(护城河)**:session 越多 → facts 越准 → 新 session 越好用,复利增长;且这份资产**跨越任何一次工具更换存活**。system-of-record 位置由它决定。
+1. **Adapters (the capture/conversion layer)**: grunt work, not hard work — replicable in two weeks, and standardization keeps flattening its value (AGENTS.md has already commoditized the injection side). → **Strategy: open-source it all**, proactively become the de facto standard, let the community maintain format drift (the most annoying part), and commoditize competitors' capture layers (commoditize the complement, the Terraform providers playbook).
+2. **The knowledge plane (product core)**: the fact model, recency semantics, fusion, provenance, the PR review workflow. This is where the self-built moat is, the vehicle for commercialization.
+3. **The knowledge corpus (the moat)**: more sessions → more accurate facts → new sessions more usable, compounding growth; and this asset **survives any single tool switch**. The system-of-record position is determined by it.
 
-### 11.3 市场边界(诚实版)
+### 11.3 Market Boundary (the Honest Version)
 
-"大厂互不支持"保护的是**多工具团队**这个细分。若 Anthropic 给纯 Claude Code 团队做了够用的原生团队记忆,单工具市场进不去。我们的地盘:混用团队 + 自托管/数据不出企业的刚需客户 + 想要 git 化可 review 记忆的团队。足够大,但要认清边界;竞争格局详见 §12。
+What "the big players don't support each other" protects is the segment of **multi-tool teams**. If Anthropic builds good-enough native team memory for pure Claude Code teams, we can't enter the single-tool market. Our turf: mixed-tool teams + customers with a hard requirement for self-hosting / data staying inside the enterprise + teams that want git-ified, reviewable memory. Big enough, but recognize the boundary; see §12 for the competitive landscape.
 
-### 11.4 捕获耐久性(设计约束)
+### 11.4 Capture Durability (a Design Constraint)
 
-Session 正在上云(Claude Code on the web、Cursor cloud agents),云上 session 本地没有 jsonl,at-rest 解析会逐渐够不着。**捕获策略不押宝文件解析**:hook/SDK 级捕获(如 Claude Code SessionEnd hook 提供 `transcript_path`)比 at-rest 解析更耐久。Adapter 接口把两种来源抽象为同一输入:`capture source ∈ {at-rest file, hook/SDK stream}`。
+Sessions are moving to the cloud (Claude Code on the web, Cursor cloud agents), and cloud sessions have no local jsonl, so at-rest parsing will gradually fall short. **The capture strategy doesn't bet on file parsing**: hook/SDK-level capture (e.g. the Claude Code SessionEnd hook provides `transcript_path`) is more durable than at-rest parsing. The adapter interface abstracts both sources into the same input: `capture source ∈ {at-rest file, hook/SDK stream}`.
 
-## 12. 竞争格局(2026-07 调研快照)
+## 12. Competitive Landscape (2026-07 Research Snapshot)
 
-### 12.1 需求信号
+### 12.1 Demand Signals
 
-- anthropics/claude-code [#38536](https://github.com/anthropics/claude-code/issues/38536):工程经理提出的结构化"共享团队记忆"需求(记忆池、记忆提升、交接上下文转移、事件响应连续性),与本设计场景逐条对应;[#40981](https://github.com/anthropics/claude-code/issues/40981) 要求跨成员共享 session。均 open、无官方回应。
-- 社区自救已出现:[claude-session-memory](https://github.com/teamspwk/claude-session-memory)(自动捕获→知识卡→git 共享,思路同构,玩具阶段)、session-share skill 等。
-- Issue 中列举的现有 workaround 全部失败于同一点:**要求用户新增动作**(手动重构上下文/导出贴工单/口头交接/静态 CLAUDE.md)。→ §13 的设计原则由此而来。
+- anthropics/claude-code [#38536](https://github.com/anthropics/claude-code/issues/38536): a structured "shared team memory" need raised by an engineering manager (memory pool, memory promotion, handoff context transfer, incident-response continuity), matching this design's scenarios point by point; [#40981](https://github.com/anthropics/claude-code/issues/40981) requests cross-member session sharing. Both are open, with no official response.
+- Community self-help has already appeared: [claude-session-memory](https://github.com/teamspwk/claude-session-memory) (auto capture → knowledge card → git sharing, an isomorphic idea, toy stage), the session-share skill, etc.
+- The existing workarounds listed in the issues all fail at the same point: **they require the user to add an action** (manually reconstruct context / export and paste into a ticket / verbal handoff / a static CLAUDE.md). → The design principle in §13 comes from this.
 
-### 12.2 玩家对照
+### 12.2 Player Comparison
 
-| 玩家 | 做了什么 | 缺什么 |
+| Player | What they did | What they lack |
 | --- | --- | --- |
-| Claude Code 原生 | session 严格本机、按目录;团队层面只有静态 CLAUDE.md | 无跨用户共享、无团队记忆、无蒸馏 |
-| Cursor 原生 | Memories(个人级)、团队可共享的只有手写 rules | Memories 不跨团队,无 session 蒸馏 |
-| GitHub Copilot Spaces | 团队上下文空间 | 内容靠人工策展,只喂 Copilot,单工具孤岛 |
-| Mem0 / Zep / Letta | 记忆 API 基础设施,有 org 级 scope | 给开发者造 agent 用的 API,不是团队协作产品;其 2026 报告的开放问题(记忆过时、隐私同意、演进 vs 替换)反向论证本设计 fact schema 的必要性 |
-| **SpecStory(最接近)** | 本地优先捕获 7 种工具 session、云同步、Lore 把历史加工成 skills、1.2k star | 捕获/搜索优先;无 fact 模型、无融合语义、无 provenance 链;**团队共享标注"coming soon"** |
+| Claude Code native | Sessions strictly local, per directory; at the team level only a static CLAUDE.md | No cross-user sharing, no team memory, no distillation |
+| Cursor native | Memories (individual level); the only team-shareable thing is hand-written rules | Memories don't cross the team, no session distillation |
+| GitHub Copilot Spaces | Team context spaces | Content relies on manual curation, feeds only Copilot, a single-tool island |
+| Mem0 / Zep / Letta | Memory API infrastructure, with org-level scope | An API for developers building agents, not a team collaboration product; the open questions in their 2026 report (memory staleness, privacy consent, evolution vs. replacement) conversely argue for the necessity of this design's fact schema |
+| **SpecStory (the closest)** | Local-first capture of 7 tools' sessions, cloud sync, Lore turns history into skills, 1.2k star | Capture/search-first; no fact model, no fusion semantics, no provenance chain; **team sharing marked "coming soon"** |
 
-### 12.3 窗口与风险判断
+### 12.3 Window and Risk Assessment
 
-- 先发窗口以**季度**计(SpecStory 团队功能在路线图上)。
-- 最大风险 = 平台原生化(社区期待强到出现过虚构的"Claude Code team memory 泄漏"文章)。结构性防御 = 平台厂商不会做的三件事:跨工具中立、自托管数据不出企业、git 原生。
-- 方向性利好:AGENTS.md 已成跨工具事实标准,Materializer"import 一套通吃"的赌注被行业收敛兑现。
+- The first-mover window is measured in **quarters** (SpecStory's team features are on the roadmap).
+- The biggest risk = platform nativization (community anticipation is strong enough that a fabricated "Claude Code team memory leak" article once appeared). The structural defense = the three things the platform vendors won't do: cross-tool neutrality, self-hosted data staying inside the enterprise, git-native.
+- Directional tailwind: AGENTS.md has become the cross-tool de facto standard, and the Materializer's bet that "one import fits all" is redeemed by the industry's convergence.
 
-## 13. 零摩擦用户流程(结合现有场景)
+## 13. A Zero-Friction User Flow (Fitting Existing Scenarios)
 
-**设计原则只有一条:零新增习惯——每个环节寄生在团队已有的动作里。**
+**There is only one design principle: zero new habits — every step parasitizes an action the team already performs.**
 
-| 环节 | 寄生宿主 | 机制 |
+| Step | Parasitized host | Mechanism |
 | --- | --- | --- |
-| 捕获 | 装一次插件 | SessionEnd hook 后台自动蒸馏,无 `tg distill` 手动命令 |
-| Review/脱敏 | 本来就要 review 的 PR | session↔PR 原生关联(`--from-pr`);知识 diff 作为伴随 commit / bot 评论进**同一个 PR** |
-| 存储 | 现有代码 repo | MVP 不建独立知识库 repo,放 `.team-context/` 目录,权限/clone/CI 全部搭现成的车 |
-| Pull + 物化 | `git pull` 代码 | CLAUDE.md 一行 `@.team-context/materialized.md` import;同事拉代码即拉知识,起 session 自动带上——这一步**彻底消失** |
-| Onboarding | clone repo | 新人第一天起 Claude Code,团队全部 facts/playbooks 已在上下文里。零动作,比昆卡剧本更普适的 demo 场景 |
+| Capture | Install the plugin once | SessionEnd hook auto-distills in the background, no manual `tg distill` command |
+| Review/redaction | The PR you already have to review | Native session↔PR association (`--from-pr`); the knowledge diff enters the **same PR** as an accompanying commit / bot comment |
+| Storage | The existing code repo | The MVP doesn't build a separate knowledge base repo — it puts a `.team-context/` directory, so permissions/clone/CI all ride the existing car |
+| Pull + materialize | `git pull` on the code | One line in CLAUDE.md, `@.team-context/materialized.md` import; a teammate pulling the code pulls the knowledge, and starting a session carries it automatically — this step **disappears entirely** |
+| Onboarding | clone the repo | A newcomer starts Claude Code on day one with all the team's facts/playbooks already in context. Zero actions, a more universal demo scenario than the Cuenca script |
 
-用户可见面收敛为两个:**装一次插件 + 在 PR 里多看一段知识 diff**。其余全部隐形。`tg` CLI 保留给高级用户与 debug。跨 repo 的组织级知识库、MCP 检索面等到 Phase 2 再引入。
+The user-visible surface converges to two things: **install a plugin once + read one extra knowledge diff in a PR**. Everything else is invisible. The `tg` CLI is kept for power users and debugging. The cross-repo org-level knowledge base, the MCP retrieval surface, etc. are introduced only in Phase 2.
 
-## 14. 开源与商业化策略
+## 14. Open-Source and Commercialization Strategy
 
-**先开源,商业化跟着 Phase 2 的服务端落地。**三个决定性理由:
+**Open-source first; commercialization follows the Phase 2 server-side landing.** Three decisive reasons:
 
-1. **隐私信任**:输入是全公司 AI session 转录,闭源 SaaS 起步过不了企业信任关;"开源 + 本地优先 + git 原生"把服务器整个移出数据路径,MVP 本来也不需要服务器。
-2. **标准采纳**:§11 的目标是当事实标准,标准必须开放;赛道上直接竞对(SpecStory,Apache-2.0)与社区方案全部开源,闭源连被评估资格都难拿。
-3. **护城河不在代码**:知识语料在客户自己 repo 里复利,可收费价值在中央服务层。开源送掉的是本来守不住的部分。
+1. **Privacy trust**: the input is the whole company's AI session transcripts, and a closed-source SaaS can't pass the enterprise trust gate at the start; "open source + local-first + git-native" moves the server entirely out of the data path, and the MVP doesn't need a server anyway.
+2. **Standard adoption**: §11's goal is to be the de facto standard, and a standard must be open; the direct competitor on the track (SpecStory, Apache-2.0) and the community solutions are all open source, so a closed-source one can barely even earn the right to be evaluated.
+3. **The moat is not in the code**: the knowledge corpus compounds inside the customer's own repo, and the chargeable value is in the central service layer. What open-sourcing gives away is the part we couldn't have defended anyway.
 
-**分界线一句话:单机 + git 能跑的,永远开源免费;需要中央服务的,收费。**
+**The dividing line in one sentence: what can run on a single machine + git is always open source and free; what needs a central service is paid.**
 
-| | 开源(Apache/MIT) | 商业(SaaS 订阅 / 自托管 license) |
+| | Open source (Apache/MIT) | Commercial (SaaS subscription / self-hosted license) |
 | --- | --- | --- |
-| 内容 | spec、adapters、tg CLI、插件、distiller、materializer | 集中证据库、回放 UI、语义搜索、MCP 检索面、跨 repo 组织知识库、trace 级权限、SSO/审计 |
-| 对应阶段 | Phase 1 全部 | Phase 2/3 全部 |
+| Content | spec, adapters, tg CLI, plugin, distiller, materializer | centralized evidence store, replay UI, semantic search, MCP retrieval surface, cross-repo org knowledge base, trace-level permissions, SSO/audit |
+| Corresponding phase | All of Phase 1 | All of Phase 2/3 |
 
-License 分层:spec 与 adapters 用宽松协议最大化采纳;服务端组件将来可考虑 AGPL/BSL 防云厂商白嫖(Phase 2 再决策,现在不消耗精力)。
+License tiering: use permissive licenses for the spec and adapters to maximize adoption; server-side components can later consider AGPL/BSL to prevent cloud vendors from free-riding (decide in Phase 2, don't spend energy on it now).
 
-**发射动作**(开源 ≠ 扔上 GitHub;同构想法 0 star 的先例就在眼前):Show HN;直接回帖 anthropics/claude-code #38536 与 #40981——第一批目标用户已经在评论区实名画像;配合 AGENTS.md 生态位写一篇"你的团队记忆不该锁死在某个工具里"的定位文。
+**Launch actions** (open source ≠ dumping it on GitHub; the precedent of an isomorphic idea with 0 stars is right in front of us): Show HN; reply directly on anthropics/claude-code #38536 and #40981 — the first batch of target users have already drawn their own profiles by name in the comments; pair with the AGENTS.md niche to write a positioning piece titled "Your team's memory shouldn't be locked into one tool."
 
-## 15. 开发计划
+## 15. Development Plan
 
-- **M0 骨架(已完成)**:`internal/ir`(fact/playbook 模型、frontmatter 编解码、supersession 语义、store)、`internal/redact`(密钥脱敏)、`internal/parser`(digest:转录→蒸馏输入,含元数据提取与 head/tail 截断)、`internal/distill`(prompt 构建、经 `claude -p` 的本地蒸馏、二次脱敏、proposal 校验)、`internal/materialize`(确定性渲染 + CLAUDE.md import)、`cmd/tg`(init/distill/materialize/status/hook)、Claude Code 插件(SessionEnd 入队)。全部带单测,端到端冒烟通过。
-- **M1 自食(本周)**:自己团队真实 session 上跑蒸馏,迭代 prompt 质量(这是核心壁垒所在);验证再物化假设——蒸馏后的上下文注入新 session,另一人能否接着干(§7 的第一承重假设);按结果调 fact 粒度与 playbook 结构。
-- **M2 开源发布**:拆出独立开源 repo(或本 repo 转公开),LICENSE、README、安装文档、demo GIF;执行 §14 发射动作;收第一批多工具团队反馈。
-- **M3 融合验证**:两人对同一环境各自蒸馏 → git merge 知识库,验证并集/覆盖/冲突三条路径;嵌入相似度的近重复检测 bot(PR 上标注疑似同义 fact);任务级评估(冷启动 vs 注入,token/冗余探索/正确率)。
-- **M4 Phase 2 服务端**:按 §8,集中证据库、回放、检索、MCP 面;商业化随之启动。
+- **M0 skeleton (done)**: `internal/ir` (fact/playbook model, frontmatter encode/decode, supersession semantics, store), `internal/redact` (secret redaction), `internal/parser` (digest: transcript → distillation input, with metadata extraction and head/tail truncation), `internal/distill` (prompt building, local distillation via `claude -p`, second-pass redaction, proposal validation), `internal/materialize` (deterministic rendering + CLAUDE.md import), `cmd/tg` (init/distill/materialize/status/hook), the Claude Code plugin (SessionEnd enqueue). All with unit tests, end-to-end smoke passing.
+- **M1 dogfooding (this week)**: run distillation on our own team's real sessions, iterate on prompt quality (this is where the core moat lies); validate the re-materialization assumption — with the distilled context injected into a new session, can another person pick up the work (the first load-bearing assumption in §7); tune fact granularity and playbook structure based on results.
+- **M2 open-source release**: split out a standalone open-source repo (or make this repo public), LICENSE, README, install docs, demo GIF; execute the §14 launch actions; collect the first batch of feedback from multi-tool teams.
+- **M3 fusion validation**: two people each distill against the same environment → git merge the knowledge base, validating the three paths of union/override/conflict; a near-duplicate detection bot with embedding similarity (flag suspected synonymous facts on the PR); task-level evaluation (cold start vs. injected, tokens/redundant exploration/correctness rate).
+- **M4 Phase 2 server side**: per §8, the centralized evidence store, replay, retrieval, MCP surface; commercialization starts alongside.
 
-蒸馏自动化的演进路径:MVP 是"SessionEnd 入队 + 手动 `tg distill`"(不经同意不花 token,不做后台 LLM 调用);验证信任后加 opt-in 的自动蒸馏模式(后台 `claude -p --no-session-persistence`,防 hook 递归已内建)。
+The evolution path of distillation automation: the MVP is "SessionEnd enqueue + manual `tg distill`" (no spending tokens without consent, no background LLM calls); after trust is validated, add an opt-in auto-distillation mode (background `claude -p --no-session-persistence`, with hook-recursion protection built in).
 
-## 16. 命名:Stillroom
+## 16. Naming: Stillroom
 
-**产品名 Stillroom(蒸馏房)**;Traces Git 降级为内部代号/repo 名沿用。
+**The product name is Stillroom**; Traces Git is demoted to an internal codename / repo name that we keep using.
 
-来历与咬合点:still = 蒸馏器(distill 的词根);stillroom 是 16 世纪起英国庄园里蒸馏药酒、提炼草药的专门房间,其主人世代维护一本 **still room book**——配方、药方、经验条目,由上一代传给下一代、每代人补充自己验证过的新条目。它是历史上真实存在的跨代团队知识库。一个词同时命中产品的两个核心:**distill(蒸馏 session)+ 世代相传的共享手册(.team-context)**。
+Origin and the point where it clicks: still = the still (the root of distill); a stillroom, from the 16th century, was a dedicated room in English manors for distilling medicinal spirits and refining herbs, whose mistress kept, generation after generation, a **still room book** — recipes, remedies, and experience entries, passed from one generation to the next, each adding their own newly verified entries. It is a real, historical cross-generational team knowledge base. One word hits both cores of the product at once: **distill (distill sessions) + a shared handbook passed down through generations (.team-context)**.
 
-命名调研结论(2026-07):Engram(已融 $98M)、Tacit、Cairn、Baton、Slipstream、Kindling、Stigmerge 等候选在 AI/dev 工具空间全部被占;Stillroom 在该空间基本干净(仅存在香薰/日记类远距离小品牌)。
+Naming research conclusion (2026-07): Engram (already raised $98M), Tacit, Cairn, Baton, Slipstream, Kindling, Stigmerge, and other candidates are all taken in the AI/dev tool space; Stillroom is essentially clean in that space (only distant small brands in the aromatherapy/journaling category exist).
 
-待办:注册域名(候选 stillroom.dev / stillroom.ai / getstillroom.dev;注意 getstillroom.com 已被一个环境音 app 占用)、GitHub org、npm/homebrew 包名核验;正式发布前做一次商标检索。CLI 命令名已随新仓库定为 `still`(`still distill` / `still status`)。README 开头用两句话讲 still room book 的典故——这个名字自带 About 页面。
+To do: register the domain (candidates stillroom.dev / stillroom.ai / getstillroom.dev; note that getstillroom.com is already taken by an ambient-sound app), the GitHub org, verify the npm/homebrew package names; run a trademark search before the formal release. The CLI command name has been set to `still` along with the new repo (`still distill` / `still status`). Open the README with two sentences telling the still room book anecdote — this name comes with its own About page.

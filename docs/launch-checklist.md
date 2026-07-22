@@ -43,10 +43,12 @@ key-laden sessions and no visible leaks. What remains is mostly mechanical.
 
 ## Docs & language — all public surface in English
 
-- [ ] **Translate the internal docs to English.** `docs/design-v2.md`,
-      `docs/testing.md`, `docs/progress.md`, `docs/development.md` are currently
-      in Chinese. For a public repo the whole surface should be English. (Code
-      comments, README, and CLI help already are.)
+- [x] **Internal docs translated to English.** `docs/design-v2.md`,
+      `docs/testing.md`, `docs/progress.md` and `CLAUDE.md` are now English
+      (`development.md` already was). The prose surface is fully English. (2026-07-22)
+      Note: some `_test.go` fixtures keep CJK on purpose — they verify
+      CJK/multibyte handling (the near-dup detector, rune-boundary clipping,
+      redaction inside CJK context), a first-class use case, not documentation.
 - [x] **`CONTRIBUTING.md`** — build/test/lint, the hard rules, the
       invariant-organized test layout, and how to add an adapter. (2026-07-22)
 - [ ] **Show real output in the README.** A short before/after: a session digest
