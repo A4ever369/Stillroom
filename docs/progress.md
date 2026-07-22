@@ -15,6 +15,26 @@
 
 ## 变更日志
 
+### 2026-07-22 — L4 场景矩阵补全:smoke.sh 从单条 happy path 扩成 6 场景
+
+`scripts/smoke.sh` 重写成**隔离场景矩阵**(纯 bash + fake claude,零 token),每个
+场景一个独立世界(临时 repo + `CLAUDE_CONFIG_DIR`/`CODEX_HOME` + fake claude),失败
+局部化。测的是**编译出的真二进制**——用户实际那条链路(shell 集成、插件 hook、
+真文件系统),是 Go 黑盒测不到的一层。六场景全绿:
+
+1. cold-start:init→doctor→自动发现→distill(含脱敏断言)→materialize
+2. **hook 入队**:`still hook session-end` 读 `{transcript_path,cwd}` 入队 → 队列文件 →
+   `status` pending 1 → distill 消费 → 队列清空(转录刻意放发现目录外,唯一入口是队列)
+3. 幂等 + `--force`
+4. **Codex 发现**:CODEX_HOME 放 cwd 匹配本 repo 的 rollout → distill 端到端发现并蒸馏,
+   多工具接线走通真二进制
+5. 融合(仍在 `fusion_test.go`,Go 黑盒)
+6. **升级路径**:老布局 → `init` 就地升级补齐 gitattributes/gitkeep/gitignore 且不丢数据
+7. review diff
+
+顺手抓到一个纯 bash 坑:`printf "$fmt"` 当 `$fmt` 以 `---` 开头会被当成选项,改用
+heredoc。**至此 L0–L5 六层全部有可执行证据,测试方案 100% 落地。**
+
 ### 2026-07-22 — review 寄生落地:PR 自动评论知识 diff(§13 最后一块)
 
 - **`internal/review`(新)**:纯函数,把两个知识快照(base/head)按 **fact id**

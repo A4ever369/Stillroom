@@ -78,20 +78,31 @@ tmp/
 fake claude 用一个可参数化的脚本(读环境变量决定吐什么),让「模型返回畸形输出」
 这类分支也能测——这是目前完全没覆盖的一大片。
 
-### L4 端到端场景
+### L4 端到端场景 —— **矩阵已落地**
 
-`scripts/smoke.sh` 现在是单条 happy path,扩成场景矩阵(仍是纯 bash + fake claude):
+`scripts/smoke.sh` 已从单条 happy path 扩成**场景矩阵**(纯 bash + fake claude,
+零 token)。每个场景一个隔离世界(临时 repo + `CLAUDE_CONFIG_DIR`/`CODEX_HOME` +
+fake claude),失败局部化、场景间不串状态。跑的是**编译出的真二进制**,测的是
+用户实际体验的那条链路(shell 集成、插件 hook、真实文件系统):
 
-1. **冷启动全流程**(现有):init → doctor → distill → materialize
-2. **hook 入队路径**:模拟插件调用 → 队列文件 → distill 消费 → 队列清空
-3. **幂等与 force**:重跑无输出;`--force` 重新蒸馏
-4. **融合**(`cmd/still/fusion_test.go`,已落地):两个 clone 各自蒸馏 →
+1. **冷启动全流程** ✅:init → doctor → 自动发现 → distill(含脱敏断言)→ materialize
+2. **hook 入队路径** ✅:`still hook session-end` 读 `{transcript_path,cwd}` 入队 →
+   队列文件出现 → `status` 显示 pending 1 → distill 消费 → 队列清空、pending 0。
+   (转录刻意放在发现目录**之外**,确保唯一入口是队列。)
+3. **幂等与 force** ✅:重跑报「nothing to distill」;`--force` 重新蒸馏
+4. **Codex 发现**(新增)✅:CODEX_HOME 放一个 cwd 匹配本 repo 的 rollout,空
+   CLAUDE_CONFIG_DIR → distill 端到端发现并蒸馏它,验证多工具接线走通真二进制。
+5. **融合**(`cmd/still/fusion_test.go`,Go 黑盒):两个 clone 各自蒸馏 →
    `git merge`。验证 design-v2 §2「一个 fact 一个文件」的核心赌注。**结论:赌注成立**
    ——不相交的知识 git 自动合并;真正的分歧(两边改同一 fact)照样停下来等人裁决,
    且冲突严格局限在那一个文件里,其余知识照常合并。
    > 这条测试同时逼出了生成物 `materialized.md` 的必然冲突(见变更日志),
    > 以及空目录不进 git 导致的新人 onboarding 崩溃。
-5. **升级路径**:老版本 `.team-context/` 布局 → 新版本 `init` → 就地升级不丢数据
+6. **升级路径**(新增)✅:手工造老版本 `.team-context/` 布局(有 fact、`.gitignore`
+   缺 `.local/`、无 `.gitattributes`、无 `.gitkeep`)→ `still init` 就地升级 →
+   断言补齐 union-merge 属性 / `.local/` / 两个 `.gitkeep`,且**原有 fact 不丢**。
+7. **review diff**(新增)✅:`still review --base/--head` 渲染语义知识 diff,断言
+   锚点 + 新 fact 出现、未变 fact 不出现。
 
 ### L5 蒸馏质量评估(半自动,不进 CI)——**骨架已落地**
 
