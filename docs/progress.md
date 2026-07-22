@@ -15,6 +15,30 @@
 
 ## 变更日志
 
+### 2026-07-22 — Codex adapter 落地(第二个源工具)+ digest 类型下沉为 tool-agnostic
+
+M2 路线上的多工具支持迈出第一步:接入 **OpenAI Codex CLI**。
+
+- **`internal/session`(新)**:把 `Digest`/`Meta` 及渲染工具(`Clip`/`WriteTurn`/
+  `CompactJSON`/`CompactAny`)从 `claudecode` 下沉成 tool-agnostic 类型。distill 管线
+  现在只认 `session.Digest`,加一个工具 = 加一个 adapter,下游零改动。`Meta` 新增
+  `Tool` 字段(`claude-code`/`codex`),决定 fact 上 source ref 的 scheme。
+- **`internal/adapter/codex`(新)**:对着**本机真实 rollout 文件**逆出格式
+  (`~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`,每行 `{timestamp,type,payload}`)。
+  `session_meta`→cwd/session_id;`response_item` 的 message/function_call/
+  function_call_output 进 digest,reasoning 丢弃(同 claudecode 丢 thinking)。
+  **实测**:一个真实 904-turn session 正确解析出 tool/turns/cwd/session/毫秒级
+  LastActivity。
+- **发现差异**:Codex 不像 Claude Code 用 encoded-cwd 目录名,而是按日期存、cwd 写在
+  文件里 —— 所以 `codex.Discover` 读每个 rollout 的首个 `session_meta` 行取 cwd 匹配。
+- **质量决策**:Codex 的 `developer` 角色消息是注入的环境/审批/base-instructions
+  框架(能把 digest 顶到 200KB 上限),**丢弃**,只留 user/assistant —— 与 claudecode
+  只渲染 user/assistant 一致。
+- **接线**:`still distill` 现在同时发现 Claude Code + Codex session;队列路径按
+  `IsRollout`(basename `rollout-*.jsonl`)分派到对应 adapter;`doctor` 分别报两者数量。
+- **测试**:codex 单测(格式/时间/mtime 回落/坏行容错/IsRollout/Discover 按 cwd 匹配)
+  + fuzz target(接入 nightly)。codex 87.9%、session 89.7%,全绿。
+
 ### 2026-07-22 — 首次真实 session 蒸馏验证 + 证据驱动的第一次 prompt 调优
 
 拿本仓库自己的开发 session(441 turns,即建整套测试体系那段)跑
@@ -156,7 +180,7 @@ design-v2 §2「一个 fact 一个文件 = git 目录合并就是融合算法」
 
 1. **真实 session 蒸馏验证(只有人能做)**:`make still && ./bin/still init && ./bin/still doctor`,然后 `./bin/still distill --dry-run`。真实成色决定 prompt 怎么调(`internal/distill/distill.go` 的 `BuildPrompt`)。这是 M1 的全部悬念。
 2. 依据 1 的结果迭代 prompt / fact 粒度 / minTurns 阈值。
-3. Codex adapter(`~/.codex/sessions/**`,实现 `internal/adapter/codex`,复用 digest→distill 管线)。
+3. ~~Codex adapter~~ ✅ 2026-07-22 已落地(见变更日志)。下一个 adapter 候选:Cursor。
 4. GitHub Action:PR 上自动评论知识 diff 摘要(review 寄生策略的最后一块,§13)。
 5. M2 发射清单:域名(stillroom.dev / .ai)、GitHub org、商标检索、Show HN、回帖 anthropics/claude-code #38536 / #40981。
 
@@ -177,3 +201,5 @@ design-v2 §2「一个 fact 一个文件 = git 目录合并就是融合算法」
 | 2026-07-20 | `observed_at` 取 session 最后活动时间,不取蒸馏时刻 | 供替必须按「知识何时被观察到」排序;按工具运行时间排序会让补蒸历史 session 压掉新知识 |
 | 2026-07-20 | `materialized.md` 用 union 合并,fact 本身不用 | 生成物的并行重渲是必然冲突且无信息量;fact 上的分歧则必须停下来问人(§2) |
 | 2026-07-21 | fuzz 只进 nightly 且 `-fuzzminimizetime` 封顶,不进 push/PR 门禁 | fuzz 是时间盒探测不是门禁;引擎内联最小化在大输入上会假性卡住,封顶保证 nightly 运行有界可预测 |
+| 2026-07-22 | `Digest`/`Meta` 下沉到 `internal/session`,adapter 只做「format→digest」 | 多工具支持的正确边界:管线认一个 tool-agnostic 类型,加工具=加 adapter,零下游改动 |
+| 2026-07-22 | Codex 的 `developer` 消息丢弃,只留 user/assistant | 注入的环境/审批/base-instructions 是框架不是知识,且会吃满 digest 预算(同 claudecode 丢 thinking) |

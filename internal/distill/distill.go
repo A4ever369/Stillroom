@@ -15,9 +15,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/0xbeekeeper/stillroom/internal/adapter/claudecode"
 	"github.com/0xbeekeeper/stillroom/internal/ir"
 	"github.com/0xbeekeeper/stillroom/internal/redact"
+	"github.com/0xbeekeeper/stillroom/internal/session"
 )
 
 // Proposal is the distiller's suggested change set. It is applied as plain
@@ -77,7 +77,7 @@ type Options struct {
 // Run digests-in, proposal-out. The digest text is redacted BEFORE prompting
 // (defense in depth) and the proposal is redacted again after parsing
 // (distillation concentrates secrets — §4.1).
-func Run(ctx context.Context, run Runner, d claudecode.Digest, opts Options) (Proposal, error) {
+func Run(ctx context.Context, run Runner, d session.Digest, opts Options) (Proposal, error) {
 	if opts.Now.IsZero() {
 		opts.Now = time.Now()
 	}

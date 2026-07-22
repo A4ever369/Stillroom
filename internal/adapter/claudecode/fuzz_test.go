@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"unicode/utf8"
+
+	"github.com/0xbeekeeper/stillroom/internal/session"
 )
 
 func FuzzDigestSession(f *testing.F) {
@@ -40,8 +42,8 @@ func FuzzDigestSession(f *testing.F) {
 			// Only I/O errors are acceptable; content must never be fatal.
 			t.Fatalf("digesting a readable file failed: %v\ninput: %q", err, content)
 		}
-		if len(d.Text) > maxDigestBytes {
-			t.Fatalf("digest exceeded its budget: %d > %d bytes", len(d.Text), maxDigestBytes)
+		if len(d.Text) > session.MaxDigestBytes {
+			t.Fatalf("digest exceeded its budget: %d > %d bytes", len(d.Text), session.MaxDigestBytes)
 		}
 		// Clipping cuts on byte offsets, so a naive implementation splits
 		// multi-byte runes — Chinese prompts are the norm here. Valid input

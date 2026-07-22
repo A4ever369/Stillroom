@@ -40,25 +40,6 @@ not-json
 	}
 }
 
-func TestClipKeepsHeadAndTailOnRuneBoundaries(t *testing.T) {
-	s := strings.Repeat("中文内容一二三四五", 1000) // 15KB of multi-byte text
-	out := clip(s, 1000)
-	if len(out) > 1100 {
-		t.Fatalf("clip did not shrink: %d bytes", len(out))
-	}
-	if !strings.Contains(out, "[...elided...]") {
-		t.Fatal("elision marker missing")
-	}
-	if !strings.HasPrefix(out, "中文") || !strings.HasSuffix(out, "五") {
-		t.Fatalf("head/tail not preserved: %q ... %q", out[:12], out[len(out)-12:])
-	}
-	for _, r := range out {
-		if r == '�' {
-			t.Fatal("clip split a multi-byte rune")
-		}
-	}
-}
-
 // observed_at must come from the session, not from the clock at distill time:
 // distilling a three-week-old session later must not let it outrank knowledge
 // learned since. See SessionMeta.LastActivity.

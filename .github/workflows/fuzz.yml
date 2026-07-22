@@ -26,6 +26,8 @@ jobs:
             fn: FuzzParsePlaybook
           - pkg: ./internal/adapter/claudecode
             fn: FuzzDigestSession
+          - pkg: ./internal/adapter/codex
+            fn: FuzzDigestSession
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5

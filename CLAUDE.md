@@ -16,7 +16,9 @@ into agent context via CLAUDE.md imports.
 | --- | --- |
 | `cmd/still` | CLI: init / distill / materialize / status / doctor / hook |
 | `internal/ir` | knowledge model: Fact (observed_at/supersedes/status), Playbook, Store |
+| `internal/session` | tool-agnostic `Digest`/`Meta` + shared render helpers (clip, turns) |
 | `internal/adapter/claudecode` | Claude Code adapter: session discovery + transcript → digest |
+| `internal/adapter/codex` | Codex CLI adapter: `rollout-*.jsonl` discovery + digest (same `session.Digest`) |
 | `internal/distill` | prompt build, `claude -p` runner, proposal parse, near-dup check |
 | `internal/materialize` | render materialized.md (active facts only, deterministic) |
 | `internal/redact` | secret scrubbing (runs on digest input AND distiller output) |

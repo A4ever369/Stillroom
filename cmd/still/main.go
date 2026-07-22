@@ -20,11 +20,13 @@ import (
 	"time"
 
 	"github.com/0xbeekeeper/stillroom/internal/adapter/claudecode"
+	"github.com/0xbeekeeper/stillroom/internal/adapter/codex"
 	"github.com/0xbeekeeper/stillroom/internal/distill"
 	"github.com/0xbeekeeper/stillroom/internal/ir"
 	"github.com/0xbeekeeper/stillroom/internal/ledger"
 	"github.com/0xbeekeeper/stillroom/internal/materialize"
 	"github.com/0xbeekeeper/stillroom/internal/queue"
+	"github.com/0xbeekeeper/stillroom/internal/session"
 )
 
 // minTurns filters out sessions too short to hold durable knowledge.
@@ -160,7 +162,25 @@ func pendingSessions(s ir.Store, force bool) ([]string, error) {
 	for _, sess := range discovered {
 		add(sess.Path)
 	}
+	// Codex sessions for this repo, discovered the same way. A second tool is
+	// just a second adapter — the pipeline downstream is identical.
+	codexSessions, err := codex.Discover(codex.Home(), s.Root)
+	if err != nil {
+		return nil, err
+	}
+	for _, sess := range codexSessions {
+		add(sess.Path)
+	}
 	return out, nil
+}
+
+// digestSession dispatches a transcript path to the adapter that owns its
+// format. Queued paths carry no tool tag, so the file shape decides.
+func digestSession(path string) (session.Digest, error) {
+	if codex.IsRollout(path) {
+		return codex.DigestSession(path)
+	}
+	return claudecode.DigestSession(path)
 }
 
 func cmdDistill(args []string) error {
@@ -213,7 +233,7 @@ func cmdDistill(args []string) error {
 
 	anyWritten := false
 	for _, p := range paths {
-		d, err := claudecode.DigestSession(p)
+		d, err := digestSession(p)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "still: skip %s: %v\n", p, err)
 			continue
@@ -276,7 +296,7 @@ func cmdDistill(args []string) error {
 
 // finishSession dequeues and (outside dry runs) marks the ledger, so both
 // short and distilled sessions stop reappearing.
-func finishSession(s ir.Store, led ledger.Ledger, path string, d claudecode.Digest, factCount int, dryRun bool) {
+func finishSession(s ir.Store, led ledger.Ledger, path string, d session.Digest, factCount int, dryRun bool) {
 	if dryRun {
 		return
 	}
@@ -284,9 +304,13 @@ func finishSession(s ir.Store, led ledger.Ledger, path string, d claudecode.Dige
 	_ = led.Mark(ledger.Entry{Transcript: path, SessionID: d.Meta.SessionID, Facts: factCount})
 }
 
-func sourceRef(d claudecode.Digest, path string) string {
+func sourceRef(d session.Digest, path string) string {
 	if d.Meta.SessionID != "" {
-		return "claude-code://" + d.Meta.SessionID
+		tool := d.Meta.Tool
+		if tool == "" {
+			tool = "claude-code"
+		}
+		return tool + "://" + d.Meta.SessionID
 	}
 	return "file://" + filepath.Base(path)
 }
@@ -383,9 +407,11 @@ func cmdDoctor() error {
 		"install Claude Code or add it to PATH")
 
 	sessions, _ := claudecode.Discover(claudecode.Home(), s.Root)
-	check(fmt.Sprintf("session discovery (%d transcripts for this repo)", len(sessions)), true, "")
-	if len(sessions) == 0 {
-		fmt.Println("       → none found yet: work a session in this repo, or check CLAUDE_CONFIG_DIR")
+	codexSessions, _ := codex.Discover(codex.Home(), s.Root)
+	check(fmt.Sprintf("session discovery (%d Claude Code, %d Codex for this repo)",
+		len(sessions), len(codexSessions)), true, "")
+	if len(sessions)+len(codexSessions) == 0 {
+		fmt.Println("       → none found yet: work a session in this repo, or check CLAUDE_CONFIG_DIR / CODEX_HOME")
 	}
 
 	if s.Exists() {

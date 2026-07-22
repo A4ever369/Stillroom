@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xbeekeeper/stillroom/internal/adapter/claudecode"
 	"github.com/0xbeekeeper/stillroom/internal/ir"
+	"github.com/0xbeekeeper/stillroom/internal/session"
 )
 
 func TestBuildPromptInjectsExistingContext(t *testing.T) {
@@ -53,7 +53,7 @@ func TestRunDefaultsNowWhenZero(t *testing.T) {
 	}
 	// opts.Now left zero on purpose: Run must stamp a real observation time,
 	// or the resulting fact fails Validate downstream.
-	prop, err := Run(context.Background(), fake, claudecode.Digest{Text: "x"}, Options{Scope: "repo:x"})
+	prop, err := Run(context.Background(), fake, session.Digest{Text: "x"}, Options{Scope: "repo:x"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +67,7 @@ func TestRunPropagatesRunnerError(t *testing.T) {
 	fake := func(ctx context.Context, prompt string) (string, error) {
 		return "", sentinel
 	}
-	_, err := Run(context.Background(), fake, claudecode.Digest{Text: "x"}, Options{Scope: "repo:x"})
+	_, err := Run(context.Background(), fake, session.Digest{Text: "x"}, Options{Scope: "repo:x"})
 	if !errors.Is(err, sentinel) {
 		t.Fatalf("runner error should surface unchanged, got %v", err)
 	}
