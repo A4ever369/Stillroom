@@ -109,6 +109,11 @@ Extract two kinds of items:
    environment (infrastructure quirks, decisions made, constraints discovered,
    gotchas hit and resolved). NOT generic programming knowledge, NOT restating
    code that is already in the repo, NOT step-by-step narration.
+   Exclude anything true only of THIS session or run, not of the project:
+   how long a command took, that a tool timed out, one-off setup/boilerplate
+   commands, or observations about the distillation/tooling itself. Ask "would
+   a teammate who never saw this session still need this in a month?" — if not,
+   drop it.
 2. playbook — OPTIONAL. Only when the session completed a repeatable
    multi-step procedure worth handing to a teammate: preconditions, steps,
    pitfalls. Otherwise omit it.

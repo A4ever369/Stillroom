@@ -8,12 +8,35 @@
 | 里程碑 | 内容 | 状态 |
 | --- | --- | --- |
 | M0 骨架 | ir / redact / adapter / distill / materialize / CLI / 插件,全部带单测 | ✅ 2026-07-19 |
-| M1 自食 | session 自动发现、台账、近重复防护、doctor;**真实 session 蒸馏质量验证** | 🚧 代码侧就绪,待真实数据验证 |
+| M1 自食 | session 自动发现、台账、近重复防护、doctor;**真实 session 蒸馏质量验证** | 🚧 首次真实验证已跑通(成色高),prompt 调优循环启动 |
 | M2 开源发布 | repo 公开、发射动作(§14)、第一批外部用户 | ⬜ |
 | M3 融合验证 | 双人 merge 三条路径、任务级评估 | ⬜ |
 | M4 服务端(Phase 2) | 证据库、回放、检索、MCP 面;商业化启动 | ⬜ |
 
 ## 变更日志
+
+### 2026-07-22 — 首次真实 session 蒸馏验证 + 证据驱动的第一次 prompt 调优
+
+拿本仓库自己的开发 session(441 turns,即建整套测试体系那段)跑
+`still distill --dry-run`,产出 **15 facts + 1 playbook**。成色评估(L5 三轴人工目测):
+
+- **召回近乎满分**:这段 session 的每个真实决策/bug 都抓到了,且细节精确(连
+  「fake claude 要 `#!/bin/sh` + 绝对 `/bin/cat`,因为测试把 PATH 清空」这种子细节都对)。
+- **精度高**:无幻觉配置,全部落在真实发生的事上。
+- **playbook `diagnose-fuzz-stall` 质量优秀、可迁移**:把这次排查 fuzz 假挂起的
+  方法论完整固化成可复用配方。
+
+**但炸出一个明确的 prompt 缺陷——过度捕获会话/工具元观察**。两条噪声 fact:
+`distill.real-session-slow`(纯在叙述"这次测试跑本身没在 2 分钟内跑完")和
+`repo.github-remote`(夹带了 GitHub 新建 repo 的一次性 `echo README` 指令)。二者
+正是「不要 step-by-step 叙述」本该滤掉却漏掉的。**修 `BuildPrompt`**:在 fact 定义里
+加一条排除规则——凡只对"本次 session/运行"成立而非对项目成立的(命令耗时、工具超时、
+一次性 setup、关于蒸馏工具自身的观察)一律丢弃,判据是「一个没见过这次 session 的
+同事一个月后还需要它吗」。
+
+运维教训:441-turn 真实 session 的 `claude -p` 蒸馏需要**几分钟**,120s 默认超时不够,
+要后台跑(这条本身就印证了 real-session 慢——但它是运维知识,不该进 team 知识库,
+所以留在这份 progress.md,不留成 fact)。
 
 ### 2026-07-21 — L5 蒸馏质量 eval harness 落地(骨架)
 
