@@ -15,7 +15,27 @@
 
 ## 变更日志
 
-### 2026-07-22 — 跨 5 个真实项目的蒸馏质量验证:成色高,一个复发的调优点
+### 2026-07-22 — Eval baseline committed + launch checklist (English going forward)
+
+- `docs/launch-checklist.md` (English): honest open-source-readiness checklist,
+  grouped by severity. Quality validation and redaction are checked off; the
+  remaining blockers are mechanical (module-path ≠ repo URL breaks `go install`,
+  no prebuilt binaries, no first-run cost guardrail, Codex-runner coherence,
+  translate the Chinese docs, CONTRIBUTING/CHANGELOG).
+- Eval corpus + `eval/baseline.json` committed. Cases are **fictional but
+  realistic** (English), modeled on real distillation patterns — deliberately
+  NOT the user's real sessions: even credential-redacted, real transcripts carry
+  confidential business content and a public commit is permanent. `make eval`
+  mean 14.3/15 (deploy-pipeline-ssm 14, edge-runtime-crypto 15,
+  example-ci-pg-image 14).
+- `deploy-pipeline-ssm` is a **negative control** for the machine-env exclusion
+  shipped earlier today: it seeds "my laptop only has AWS CLI v1" and the judge
+  confirmed it was "correctly excluded" — a regression-testable proof the prompt
+  rule works.
+- New progress entries are in English from here; translating the older
+  Chinese entries and design/testing docs is a launch-checklist item.
+
+### 2026-07-22 — Distillation quality validated across 5 real projects (was Chinese; see git history)
 
 授权后对 `~/code` 下 5 个差异很大的真实项目各挑一个代表性 session、在中立 scratch
 repo 里 `distill --dry-run`(真 claude,花 token):Next.js 问卷站(fde/6am)、Go 安全

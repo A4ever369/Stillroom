@@ -1,0 +1,35 @@
+[
+  {
+    "case": "deploy-pipeline-ssm",
+    "facts": 3,
+    "playbook": true,
+    "score": {
+      "recall": 5,
+      "precision": 4,
+      "granularity": 5,
+      "notes": "All three expected facts are captured at the right size with the laptop-AWS-CLI negative control correctly excluded; slight precision ding because the SSM fact and playbook embed the literal `aws ssm start-session`/`send-command` invocations the expectation wanted kept out of durable facts."
+    }
+  },
+  {
+    "case": "edge-runtime-crypto",
+    "facts": 3,
+    "playbook": false,
+    "score": {
+      "recall": 5,
+      "precision": 5,
+      "granularity": 5,
+      "notes": "All expected knowledge is captured — the edge-runtime crypto constraint (correctly split into the constraint and where verification actually lives) plus pnpm-only — with no fabricated claims and no command-log trivia."
+    }
+  },
+  {
+    "case": "example-ci-pg-image",
+    "facts": 3,
+    "playbook": false,
+    "score": {
+      "recall": 5,
+      "precision": 5,
+      "granularity": 4,
+      "notes": "Both expected topics are captured accurately with supporting detail and no fabrication; the third fact (vector-extension dependency) is grounded but largely overlaps the CI image fact, making the split slightly finer than ideal."
+    }
+  }
+]

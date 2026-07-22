@@ -31,5 +31,19 @@ compares the produced facts against this on recall / precision / granularity.
    `cp eval/last-run.json eval/baseline.json` and commit. Future prompt changes
    diff against that baseline.
 
-The `example-*` case shipped here is synthetic, only to exercise the harness
-wiring; replace it with real sessions as they accumulate (M1).
+## Why the shipped cases are fictional
+
+The cases in this public repo are **fictional but realistic** — modeled on the
+*patterns* of real distillation (deploy/ops knowledge, subtle architecture
+constraints, framework gotchas) without any real session content. This is
+deliberate: even credential-redacted, a real transcript carries confidential
+*business* content, and a public commit is permanent. Redaction scrubs secret
+*shapes*, not proprietary *substance*.
+
+Keep a private, gitignored corpus of your own redacted sessions if you want to
+regression-test against real material.
+
+`deploy-pipeline-ssm` also serves as a **negative control**: it seeds a
+machine-specific aside ("my laptop only has AWS CLI v1") and `expected.md`
+asserts that must NOT become a fact — regression-testing the prompt rule that
+excludes local-machine environment facts from team knowledge.
