@@ -11,12 +11,10 @@ key-laden sessions and no visible leaks. What remains is mostly mechanical.
 
 ## Blockers — must fix before `go install` works for anyone
 
-- [ ] **Module path ≠ repo URL.** `go.mod` says `github.com/0xbeekeeper/stillroom`
-      but the repo is `github.com/A4ever369/Stillroom`, so
-      `go install github.com/A4ever369/Stillroom/cmd/still@latest` fails and the
-      import paths point at a module that isn't hosted where they say. Pick the
-      permanent home (org + name) and rename the module to match. Do this first —
-      everything else (binaries, docs, examples) bakes in the path.
+- [x] **Module path matches repo URL.** `go.mod` and all imports are
+      `github.com/A4ever369/Stillroom`, so `go install
+      github.com/A4ever369/Stillroom/cmd/still@latest` resolves once a tag is
+      pushed. (2026-07-22)
 - [ ] **No install path other than "clone + build".** Add a `go install`
       one-liner (fixed by the above) and prebuilt binaries via GoReleaser
       (darwin/linux/windows × amd64/arm64) attached to GitHub Releases. A

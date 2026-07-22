@@ -10,7 +10,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/0xbeekeeper/stillroom/internal/ir"
+	"github.com/A4ever369/Stillroom/internal/ir"
 )
 
 // ImportLine is the reference a repo's CLAUDE.md needs so agents load the

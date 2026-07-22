@@ -13,7 +13,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/0xbeekeeper/stillroom/internal/session"
+	"github.com/A4ever369/Stillroom/internal/session"
 )
 
 func FuzzDigestSession(f *testing.F) {

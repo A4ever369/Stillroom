@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xbeekeeper/stillroom/internal/ir"
-	"github.com/0xbeekeeper/stillroom/internal/session"
+	"github.com/A4ever369/Stillroom/internal/ir"
+	"github.com/A4ever369/Stillroom/internal/session"
 )
 
 func TestBuildPromptInjectsExistingContext(t *testing.T) {

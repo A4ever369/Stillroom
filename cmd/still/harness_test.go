@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/0xbeekeeper/stillroom/internal/adapter/claudecode"
+	"github.com/A4ever369/Stillroom/internal/adapter/claudecode"
 )
 
 var stillBin string

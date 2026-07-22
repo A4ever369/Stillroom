@@ -3,7 +3,7 @@ package distill
 import (
 	"strings"
 
-	"github.com/0xbeekeeper/stillroom/internal/ir"
+	"github.com/A4ever369/Stillroom/internal/ir"
 )
 
 // similarityThreshold: rune-bigram Jaccard above this flags two fact bodies

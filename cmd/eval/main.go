@@ -29,8 +29,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/0xbeekeeper/stillroom/internal/adapter/claudecode"
-	"github.com/0xbeekeeper/stillroom/internal/distill"
+	"github.com/A4ever369/Stillroom/internal/adapter/claudecode"
+	"github.com/A4ever369/Stillroom/internal/distill"
 )
 
 type score struct {

@@ -15,9 +15,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/0xbeekeeper/stillroom/internal/ir"
-	"github.com/0xbeekeeper/stillroom/internal/redact"
-	"github.com/0xbeekeeper/stillroom/internal/session"
+	"github.com/A4ever369/Stillroom/internal/ir"
+	"github.com/A4ever369/Stillroom/internal/redact"
+	"github.com/A4ever369/Stillroom/internal/session"
 )
 
 // Proposal is the distiller's suggested change set. It is applied as plain
