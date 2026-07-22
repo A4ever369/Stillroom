@@ -130,7 +130,8 @@ key supersedes the old one instead of piling up stale knowledge. Only
 | `still init` | set up `.team-context/` in the current repo |
 | `still doctor` | check the whole setup end to end |
 | `still distill` | distill queued **and auto-discovered** sessions (a local ledger prevents re-distilling) |
-| `still distill --transcript P --dry-run` | preview a proposal without writing |
+| `still distill --transcript PATH` | distill one transcript file, or **every `.jsonl` under a folder** in one run |
+| `still distill --dry-run` | preview proposals without writing (combine with any of the above) |
 | `still distill --force` | re-distill sessions the ledger already saw |
 | `still distill --limit N` | distill at most N sessions, newest first (caps first-run cost) |
 | `still materialize` | re-render `materialized.md` |

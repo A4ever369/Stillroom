@@ -1,9 +1,39 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
+
+// --transcript pointed at a directory distills every .jsonl under it in one
+// command — the batch case (a folder of exported traces), not one file at a time.
+func TestDistillTranscriptDirDistillsWholeFolder(t *testing.T) {
+	w := newWorld(t)
+	w.run("init")
+	w.fakeClaude(proposal(okProposal))
+
+	dir := t.TempDir()
+	body := []byte(strings.Join(longSession(), "\n"))
+	for _, name := range []string{"a.jsonl", "b.jsonl", "notes.txt"} {
+		if err := os.WriteFile(filepath.Join(dir, name), body, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	r := w.run("distill", "--dry-run", "--transcript", dir)
+	if r.code != 0 {
+		t.Fatalf("distill --transcript <dir> exit %d\n%s", r.code, r.out())
+	}
+	// Two .jsonl files distilled; the .txt is ignored.
+	if !strings.Contains(r.stdout, "2 session(s) to distill") {
+		t.Errorf("missing the folder batch heads-up:\n%s", r.stdout)
+	}
+	if n := strings.Count(r.stdout, "distilling "); n != 2 {
+		t.Errorf("expected 2 sessions distilled from the folder, saw %d\n%s", n, r.stdout)
+	}
+}
 
 // --limit caps how many sessions a run distills — the guardrail against a
 // first run over weeks of history firing an unbounded number of paid model

@@ -79,7 +79,7 @@ func usage() {
 Usage:
   still init                        set up .team-context/ in this repo
   still distill                     distill queued + newly discovered sessions
-  still distill --transcript PATH   distill one specific transcript
+  still distill --transcript PATH   distill one transcript file, or a whole folder of .jsonl
   still distill --dry-run           show proposals without writing files
   still distill --force             include sessions already distilled before
   still distill --limit N           distill at most N sessions, newest first
@@ -188,6 +188,22 @@ func pendingSessions(s ir.Store, force bool) ([]string, error) {
 	return out, nil
 }
 
+// collectTranscripts walks dir (recursively) for *.jsonl transcript files, so
+// `still distill --transcript <folder>` distills a whole batch in one command.
+func collectTranscripts(dir string) ([]string, error) {
+	var out []string
+	err := filepath.WalkDir(dir, func(path string, e os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".jsonl") {
+			out = append(out, path)
+		}
+		return nil
+	})
+	return out, err
+}
+
 // sortByMtimeDesc orders transcript paths newest first by file mtime. An
 // unreadable path sorts last rather than aborting the run.
 func sortByMtimeDesc(paths []string) {
@@ -211,7 +227,7 @@ func digestSession(path string) (session.Digest, error) {
 
 func cmdDistill(args []string) error {
 	fs := flag.NewFlagSet("distill", flag.ExitOnError)
-	transcript := fs.String("transcript", "", "distill one specific transcript instead of the queue")
+	transcript := fs.String("transcript", "", "distill a specific transcript file, or every .jsonl under a directory")
 	dryRun := fs.Bool("dry-run", false, "print the proposal without writing files")
 	force := fs.Bool("force", false, "include sessions the ledger has already seen")
 	limit := fs.Int("limit", 0, "distill at most N sessions this run, newest first (0 = all)")
@@ -224,9 +240,26 @@ func cmdDistill(args []string) error {
 	}
 
 	var paths []string
-	if *transcript != "" {
-		paths = []string{*transcript}
-	} else {
+	singleFile := false
+	switch {
+	case *transcript != "":
+		// A directory distills the whole folder in one command; a file (or a
+		// path that does not exist) stays a single entry, so a missing file is
+		// skipped non-fatally by the loop below rather than aborting the run.
+		if info, serr := os.Stat(*transcript); serr == nil && info.IsDir() {
+			paths, err = collectTranscripts(*transcript)
+			if err != nil {
+				return err
+			}
+			if len(paths) == 0 {
+				fmt.Printf("no .jsonl transcripts under %s\n", *transcript)
+				return nil
+			}
+		} else {
+			paths = []string{*transcript}
+			singleFile = true
+		}
+	default:
 		paths, err = pendingSessions(s, *force)
 		if err != nil {
 			return err
@@ -235,12 +268,14 @@ func cmdDistill(args []string) error {
 			fmt.Println("nothing to distill — no queued or newly discovered sessions")
 			return nil
 		}
-		// Newest first, so --limit keeps the most recent (and relevant) work.
+	}
+
+	// For any batch (discovery or a folder), order newest-first so --limit keeps
+	// the most recent work, and make the per-session model-call cost visible.
+	if !singleFile {
 		sortByMtimeDesc(paths)
 		total := len(paths)
 		if *limit > 0 && *limit < total {
-			// A first run can discover weeks of history; each session is a
-			// paid `claude -p` call, so make the cost visible and cappable.
 			fmt.Printf("%d sessions pending; processing the %d most recent (--limit).\n", total, *limit)
 			paths = paths[:*limit]
 		} else {
