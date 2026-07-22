@@ -45,7 +45,7 @@ func main() {
 	case "distill":
 		err = cmdDistill(os.Args[2:])
 	case "materialize":
-		err = cmdMaterialize()
+		err = cmdMaterialize(os.Args[2:])
 	case "review":
 		err = cmdReview(os.Args[2:])
 	case "status":
@@ -76,6 +76,7 @@ Usage:
   still distill --dry-run           show proposals without writing files
   still distill --force             include sessions already distilled before
   still materialize                 re-render materialized.md
+  still materialize --check         verify materialized.md is current (exit 1 if stale)
   still review --base DIR            print a knowledge diff vs another checkout (for PR bots)
   still status                      knowledge base, queue and discovery overview
   still doctor                      check the environment end to end
@@ -331,10 +332,27 @@ func printProposal(p distill.Proposal) {
 	}
 }
 
-func cmdMaterialize() error {
+func cmdMaterialize(args []string) error {
+	fs := flag.NewFlagSet("materialize", flag.ExitOnError)
+	check := fs.Bool("check", false, "verify materialized.md is up to date without writing (exit 1 if stale)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
 	s, err := mustStore()
 	if err != nil {
 		return err
+	}
+	if *check {
+		want, _, err := materialize.Render(s)
+		if err != nil {
+			return err
+		}
+		got, _ := os.ReadFile(s.MaterializedPath())
+		if string(got) != want {
+			return fmt.Errorf("materialized.md is stale — run `still materialize` and commit the result")
+		}
+		fmt.Println("materialized.md is up to date")
+		return nil
 	}
 	summary, err := materialize.Run(s)
 	if err != nil {
@@ -466,6 +484,14 @@ func cmdDoctor() error {
 		_, badPbs, _ := s.LoadPlaybooks()
 		check("knowledge files all parse", len(badFacts) == 0 && len(badPbs) == 0,
 			"see `still status` for the broken files")
+
+		// materialized.md is committed alongside facts/; if a hand edit or a
+		// merge changed facts without a re-render, teammates load stale context.
+		if want, _, rerr := materialize.Render(s); rerr == nil {
+			got, _ := os.ReadFile(s.MaterializedPath())
+			check("materialized.md is up to date", string(got) == want,
+				"run `still materialize` and commit the result")
+		}
 	}
 
 	if !ok {

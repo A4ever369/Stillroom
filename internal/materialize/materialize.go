@@ -28,17 +28,31 @@ to its evidence. Treat facts as project ground truth unless contradicted by
 the code in front of you.
 `
 
-// Run renders materialized.md from the store. Only active facts are
-// injected; superseded and disputed stay in files as history (§3.1).
-// Rendering is deterministic so repeated runs produce no git noise.
+// Run renders materialized.md and writes it, returning a one-line summary.
 func Run(s ir.Store) (string, error) {
-	facts, badFacts, err := s.LoadFacts()
+	content, summary, err := Render(s)
 	if err != nil {
 		return "", err
 	}
+	if err := os.WriteFile(s.MaterializedPath(), []byte(content), 0o644); err != nil {
+		return "", err
+	}
+	return summary, nil
+}
+
+// Render produces materialized.md's exact bytes without writing them, plus a
+// one-line summary. Only active facts are injected; superseded and disputed
+// stay in files as history (§3.1). Rendering is deterministic so repeated runs
+// produce no git noise — which is also what lets `--check` detect drift by
+// comparing this output against the committed file.
+func Render(s ir.Store) (string, string, error) {
+	facts, badFacts, err := s.LoadFacts()
+	if err != nil {
+		return "", "", err
+	}
 	playbooks, badPbs, err := s.LoadPlaybooks()
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	var b strings.Builder
@@ -80,10 +94,7 @@ func Run(s ir.Store) (string, error) {
 		fmt.Fprintf(&b, "\n<!-- WARNING: unparseable playbook %s: %v -->", name, err)
 	}
 
-	if err := os.WriteFile(s.MaterializedPath(), []byte(b.String()), 0o644); err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%d active facts, %d playbooks", active, len(playbooks)), nil
+	return b.String(), fmt.Sprintf("%d active facts, %d playbooks", active, len(playbooks)), nil
 }
 
 // EnsureImport idempotently appends the materialized-context import to the

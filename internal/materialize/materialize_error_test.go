@@ -11,6 +11,32 @@ import (
 	"testing"
 )
 
+// Render must produce exactly what Run writes, and must not touch disk — that
+// equivalence is what `still materialize --check` and the doctor drift check
+// rely on.
+func TestRenderMatchesRunAndIsPure(t *testing.T) {
+	s := seededStore(t)
+	os.Remove(s.MaterializedPath()) // start clean
+
+	content, _, err := Render(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, statErr := os.Stat(s.MaterializedPath()); statErr == nil {
+		t.Error("Render wrote a file; it must be pure")
+	}
+	if _, err := Run(s); err != nil {
+		t.Fatal(err)
+	}
+	onDisk, err := os.ReadFile(s.MaterializedPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(onDisk) != content {
+		t.Errorf("Render and Run disagree:\n--- Render ---\n%s\n--- Run wrote ---\n%s", content, onDisk)
+	}
+}
+
 func TestRunWarnsAboutUnparseableFacts(t *testing.T) {
 	s := seededStore(t)
 	// Drop a corrupt fact file straight into the store. LoadFacts reports it

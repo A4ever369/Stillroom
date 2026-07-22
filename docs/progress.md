@@ -15,6 +15,23 @@
 
 ## 变更日志
 
+### 2026-07-22 — materialized.md 漂移检测(`--check` + doctor)
+
+真实失败模式:有人手改 fact 或 merge 落地改了 `facts/`,但忘了 `still materialize`,
+提交的 `materialized.md` 就**过时**——而它正是每个队友 agent 加载的团队上下文。
+
+- `materialize.Run` 拆出纯函数 `Render`(只算字节、不落盘;确定性渲染正好让「重算 ==
+  磁盘」成为漂移判据)。
+- `still materialize --check`:重算并与磁盘比,过时则 exit 1 提示「run `still materialize`
+  and commit」,可作 CI 门禁(README 命令表已标 CI-friendly)。
+- `still doctor` 新增一项「materialized.md is up to date」。
+- 测试:materialize 单测(Render 与 Run 字节一致且不落盘)+ cmd 黑盒(distill 后 check
+  通过 → 手加 fact → check 失败且 doctor 报警 → 重 materialize → 再通过),跑的是真二进制。
+
+**为什么不做 Codex hook**:探过本机 `~/.codex`,其 `notify`/hooks 机制的载荷格式无法确认
+是否携带 rollout 路径,凭空猜违背「对着现实建」。且 Codex 自动发现已经能用,hook 只是
+新鲜度优化,非必需——故不做投机实现。
+
 ### 2026-07-22 — L4 场景矩阵补全:smoke.sh 从单条 happy path 扩成 6 场景
 
 `scripts/smoke.sh` 重写成**隔离场景矩阵**(纯 bash + fake claude,零 token),每个
