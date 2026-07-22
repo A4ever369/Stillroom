@@ -27,6 +27,7 @@ automatically. Knowledge follows the team, not the tool.
   ├── facts/           one fact per file → git merge IS the fusion algorithm
   ├── playbooks/       reusable recipes distilled from successful sessions
   └── materialized.md  auto-rendered, imported by CLAUDE.md / AGENTS.md
+        │  a PR bot comments the knowledge diff in plain language (review parasite)
         ▼
   every teammate's next session starts with the team's accumulated knowledge
 ```
@@ -61,6 +62,29 @@ git diff .team-context/   # review what would be shared, then commit
 Teammates get the knowledge by pulling the repo. Nothing else to run:
 materialized context is imported by `CLAUDE.md`, so their next session
 simply starts smarter.
+
+`still distill` discovers this repo's sessions from **both Claude Code and
+Codex** automatically — a second tool is just a second adapter, and the
+distilled knowledge is tool-agnostic once it lands.
+
+## Reviewing knowledge in the PR
+
+Knowledge changes don't need a separate review surface — they ride your
+normal PR. Drop [`.github/workflows/knowledge-diff.yml`](.github/workflows/knowledge-diff.yml)
+into a repo and, whenever a PR touches `.team-context/facts` or `/playbooks`,
+a bot comments a plain-language diff:
+
+```
+### 🧠 Team knowledge changes
+Facts: ➕ 1 new · ✏️ 0 updated · ➖ 0 removed
+
+#### ➕ New facts
+- ci.postgres.image (high): CI's Postgres service must use pgvector/pgvector:pg16 …
+```
+
+The diff is semantic (by fact ID, not text): a no-op rewrite shows nothing, and
+a fact whose observation advanced is flagged as a supersession. It runs on
+first-party GitHub actions only — no third-party dependencies.
 
 ## A fact file
 
@@ -101,6 +125,7 @@ key supersedes the old one instead of piling up stale knowledge. Only
 | `still distill --transcript P --dry-run` | preview a proposal without writing |
 | `still distill --force` | re-distill sessions the ledger already saw |
 | `still materialize` | re-render `materialized.md` |
+| `still review --base DIR` | render a plain-language knowledge diff vs another checkout (used by the PR bot) |
 | `still status` | knowledge base, queue and discovery overview |
 
 The plugin is optional: `still distill` also discovers this repo's past
@@ -109,9 +134,12 @@ distillation can mine work you did before installing anything.
 
 ## Status
 
-Early. Claude Code is the first supported tool; Codex and Cursor adapters are
-next (`internal/adapter/` is built for it). The design doc — layered IR,
-fusion semantics, roadmap — lives in [`docs/design-v2.md`](docs/design-v2.md).
+Early, but real. **Claude Code and Codex** are both supported today
+(`internal/adapter/` is built so a new tool is just a new adapter); Cursor is
+next. The knowledge model, the two-clone fusion, the redaction boundary and the
+PR-comment loop are all in place and covered by an invariant-organized test
+suite (`docs/testing.md`). The design doc — layered IR, fusion semantics,
+roadmap — lives in [`docs/design-v2.md`](docs/design-v2.md).
 
 ## License
 
