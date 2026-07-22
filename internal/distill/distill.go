@@ -111,9 +111,13 @@ Extract two kinds of items:
    code that is already in the repo, NOT step-by-step narration.
    Exclude anything true only of THIS session or run, not of the project:
    how long a command took, that a tool timed out, one-off setup/boilerplate
-   commands, or observations about the distillation/tooling itself. Ask "would
-   a teammate who never saw this session still need this in a month?" — if not,
-   drop it.
+   commands, or observations about the distillation/tooling itself. Also
+   exclude facts about the local developer's machine rather than the project —
+   its OS, which CLIs happen to be on PATH, which ports other local apps
+   occupy, personal shell aliases. (A project's OWN access model — which
+   account or auth method can reach its repo/infra — IS project knowledge;
+   keep that.) Ask "would a teammate on a different machine who never saw this
+   session still need this in a month?" — if not, drop it.
 2. playbook — OPTIONAL. Only when the session completed a repeatable
    multi-step procedure worth handing to a teammate: preconditions, steps,
    pitfalls. Otherwise omit it.

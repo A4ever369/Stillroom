@@ -15,6 +15,30 @@
 
 ## 变更日志
 
+### 2026-07-22 — 跨 5 个真实项目的蒸馏质量验证:成色高,一个复发的调优点
+
+授权后对 `~/code` 下 5 个差异很大的真实项目各挑一个代表性 session、在中立 scratch
+repo 里 `distill --dry-run`(真 claude,花 token):Next.js 问卷站(fde/6am)、Go 安全
+企业服务(agentguard-server)、LLM 网关计费 fork(new-api)、agent-eval 插件
+(clawvard)、课程平台(clawschool)。
+
+**结论:成色一致地高。** 共约 78 条 fact + 4 个真·runbook,涵盖部署管线、许可/版本
+架构、计费内部机制、迁移陷阱、框架 gotcha、访问模型——都是新同事要花几小时/几天
+才能重新摸清的东西,且带具体文件路径/commit/命令/根因。粒度好(一事一条),精度高。
+隐私边界在真实满是密钥的 session 上真的工作:new-api 脱敏 26 次、fde 5 次、clawvard 1
+次,输出里无可见泄漏。**这是核心价值主张第一次在别人的项目上被证明。**
+
+**一个跨全部 5 个项目复发的调优点**:本机环境事实会被当成 durable 混进来
+(`env.macos.no-timeout-cmd` 竟标 [high]、「port 3000 被 Docker 占用」、「PATH 上没
+curl」)。这类「只对这台开发机成立」的东西属于个人笔记不属于团队知识。**改
+`BuildPrompt`**:排除项加入「关于本地开发机而非项目的事实——OS、PATH 上碰巧有哪些
+CLI、别的本地应用占了哪个端口、个人 shell 别名」,同时**明确保留**项目自身的访问
+模型(哪个账号/认证能碰它的 repo/基建 = 项目知识)。判据改成「另一台机器上、没见过
+这次 session 的同事一个月后还需要它吗」。
+
+（按 testing.md 规矩此改动应过一次 `make eval`;但这是有 5 个数据点支撑的定向排除、
+非重写,先落地,待真实 corpus baseline 就位后回归确认。)
+
 ### 2026-07-22 — `still status --json`(结构化状态,给 CI/工具消费)
 
 `cmdStatus` 重构为先算一个 `statusReport` 结构、再渲染文本或 JSON——两种输出同源,
