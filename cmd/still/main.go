@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -49,7 +50,7 @@ func main() {
 	case "review":
 		err = cmdReview(os.Args[2:])
 	case "status":
-		err = cmdStatus()
+		err = cmdStatus(os.Args[2:])
 	case "doctor":
 		err = cmdDoctor()
 	case "hook":
@@ -78,7 +79,7 @@ Usage:
   still materialize                 re-render materialized.md
   still materialize --check         verify materialized.md is current (exit 1 if stale)
   still review --base DIR            print a knowledge diff vs another checkout (for PR bots)
-  still status                      knowledge base, queue and discovery overview
+  still status [--json]             knowledge base, queue and discovery overview
   still doctor                      check the environment end to end
   still hook session-end            (internal) called by the Claude Code plugin
 `)
@@ -405,11 +406,38 @@ func loadSnapshot(s ir.Store) review.Snapshot {
 	return review.Snapshot{Facts: facts, Playbooks: pbs}
 }
 
-func cmdStatus() error {
+// statusReport is the machine-readable knowledge-base overview. The text and
+// --json renderings are both derived from it, so they can never disagree.
+type statusReport struct {
+	Facts struct {
+		Total  int `json:"total"`
+		Active int `json:"active"`
+		Bad    int `json:"bad"`
+	} `json:"facts"`
+	Playbooks struct {
+		Total int `json:"total"`
+		Bad   int `json:"bad"`
+	} `json:"playbooks"`
+	PendingSessions int `json:"pending_sessions"`
+	Discovery       struct {
+		ClaudeCode int `json:"claude_code"`
+		Codex      int `json:"codex"`
+	} `json:"discovery"`
+	BadFiles             []string `json:"bad_files"`
+	MaterializedUpToDate bool     `json:"materialized_up_to_date"`
+}
+
+func cmdStatus(args []string) error {
+	fs := flag.NewFlagSet("status", flag.ExitOnError)
+	asJSON := fs.Bool("json", false, "emit a machine-readable JSON report")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
 	s, err := mustStore()
 	if err != nil {
 		return err
 	}
+
 	facts, badFacts, err := s.LoadFacts()
 	if err != nil {
 		return err
@@ -422,21 +450,55 @@ func cmdStatus() error {
 	if err != nil {
 		return err
 	}
-	active := 0
+
+	var rep statusReport
+	rep.Facts.Total = len(facts)
 	for _, f := range facts {
 		if f.Status == ir.StatusActive {
-			active++
+			rep.Facts.Active++
 		}
 	}
+	rep.Facts.Bad = len(badFacts)
+	rep.Playbooks.Total = len(pbs)
+	rep.Playbooks.Bad = len(badPbs)
+	rep.PendingSessions = len(pending)
+	if cc, derr := claudecode.Discover(claudecode.Home(), s.Root); derr == nil {
+		rep.Discovery.ClaudeCode = len(cc)
+	}
+	if cx, derr := codex.Discover(codex.Home(), s.Root); derr == nil {
+		rep.Discovery.Codex = len(cx)
+	}
+	rep.BadFiles = []string{} // never null in JSON
+	for name := range badFacts {
+		rep.BadFiles = append(rep.BadFiles, ir.DirName+"/facts/"+name)
+	}
+	for name := range badPbs {
+		rep.BadFiles = append(rep.BadFiles, ir.DirName+"/playbooks/"+name)
+	}
+	sort.Strings(rep.BadFiles)
+	if want, _, rerr := materialize.Render(s); rerr == nil {
+		got, _ := os.ReadFile(s.MaterializedPath())
+		rep.MaterializedUpToDate = string(got) == want
+	}
+
+	if *asJSON {
+		out, err := json.MarshalIndent(rep, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(out))
+		return nil
+	}
+
 	fmt.Printf("facts: %d (%d active)  playbooks: %d  pending sessions: %d\n",
-		len(facts), active, len(pbs), len(pending))
-	for name, err := range badFacts {
-		fmt.Printf("  BAD fact %s: %v\n", name, err)
+		rep.Facts.Total, rep.Facts.Active, rep.Playbooks.Total, rep.PendingSessions)
+	for _, bad := range rep.BadFiles {
+		fmt.Printf("  BAD %s\n", bad)
 	}
-	for name, err := range badPbs {
-		fmt.Printf("  BAD playbook %s: %v\n", name, err)
+	if !rep.MaterializedUpToDate {
+		fmt.Println("materialized.md is stale — run `still materialize` and commit")
 	}
-	if len(pending) > 0 {
+	if rep.PendingSessions > 0 {
 		fmt.Println("run `still distill` to process them")
 	}
 	return nil

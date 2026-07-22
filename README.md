@@ -127,7 +127,7 @@ key supersedes the old one instead of piling up stale knowledge. Only
 | `still materialize` | re-render `materialized.md` |
 | `still materialize --check` | verify `materialized.md` is current without writing — exit 1 if stale (CI-friendly) |
 | `still review --base DIR` | render a plain-language knowledge diff vs another checkout (used by the PR bot) |
-| `still status` | knowledge base, queue and discovery overview |
+| `still status` / `--json` | knowledge base, queue and discovery overview (`--json` for tooling/CI) |
 
 The plugin is optional: `still distill` also discovers this repo's past
 sessions directly from Claude Code's local storage, so your first

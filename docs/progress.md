@@ -15,6 +15,14 @@
 
 ## 变更日志
 
+### 2026-07-22 — `still status --json`(结构化状态,给 CI/工具消费)
+
+`cmdStatus` 重构为先算一个 `statusReport` 结构、再渲染文本或 JSON——两种输出同源,
+永不打架。JSON 含:facts(total/active/bad)、playbooks(total/bad)、pending_sessions、
+discovery(claude_code/codex 各自数量)、bad_files(排序、永不 null)、
+materialized_up_to_date(顺带把漂移信号也带进 status 文本)。文本格式保持不变(不破坏
+现有测试/smoke)。测试:黑盒解析 JSON 断言字段 + 坏文件同时进 count 和 bad_files。
+
 ### 2026-07-22 — materialized.md 漂移检测(`--check` + doctor)
 
 真实失败模式:有人手改 fact 或 merge 落地改了 `facts/`,但忘了 `still materialize`,
