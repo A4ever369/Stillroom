@@ -1,0 +1,45 @@
+# GoReleaser builds the `still` binary for every supported platform and
+# attaches the archives + checksums to a GitHub Release. It runs only when a
+# tag is pushed (see .github/workflows/release.yml) — cutting a release is a
+# deliberate `git tag` away, never automatic.
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: still
+    main: ./cmd/still
+    binary: still
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
+archives:
+  - id: still
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+release:
+  draft: true # review the generated release before publishing

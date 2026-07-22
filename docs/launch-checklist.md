@@ -15,10 +15,12 @@ key-laden sessions and no visible leaks. What remains is mostly mechanical.
       `github.com/A4ever369/Stillroom`, so `go install
       github.com/A4ever369/Stillroom/cmd/still@latest` resolves once a tag is
       pushed. (2026-07-22)
-- [ ] **No install path other than "clone + build".** Add a `go install`
-      one-liner (fixed by the above) and prebuilt binaries via GoReleaser
-      (darwin/linux/windows × amd64/arm64) attached to GitHub Releases. A
-      Homebrew tap is a strong follow-up.
+- [x] **Install path.** `go install github.com/A4ever369/Stillroom/cmd/still@latest`
+      works. GoReleaser (`.goreleaser.yaml`) + a tag-triggered workflow
+      (`.github/workflows/release.yml`) cross-build darwin/linux/windows ×
+      amd64/arm64 archives into a **draft** GitHub Release. Releasing is one
+      deliberate step: `git tag v0.1.0 && git push origin v0.1.0`. (2026-07-22)
+      A Homebrew tap is a good follow-up.
 
 ## Safety & correctness — before telling anyone to run it
 
@@ -45,9 +47,8 @@ key-laden sessions and no visible leaks. What remains is mostly mechanical.
       `docs/testing.md`, `docs/progress.md`, `docs/development.md` are currently
       in Chinese. For a public repo the whole surface should be English. (Code
       comments, README, and CLI help already are.)
-- [ ] **`CONTRIBUTING.md`** — build/test/lint (`go test ./...`, `gofmt -l`,
-      `go vet`, `bash scripts/smoke.sh`), the zero-dependency rule, the
-      invariant-organized test layout, and how to add an adapter.
+- [x] **`CONTRIBUTING.md`** — build/test/lint, the hard rules, the
+      invariant-organized test layout, and how to add an adapter. (2026-07-22)
 - [ ] **Show real output in the README.** A short before/after: a session digest
       in, the fact files + PR comment out. A GIF of `init → distill → review`.
 - [x] **README, quickstart, privacy section, commands table.** (verified E2E)
@@ -55,7 +56,8 @@ key-laden sessions and no visible leaks. What remains is mostly mechanical.
 
 ## Project hygiene
 
-- [ ] **`CHANGELOG.md`** and semver tags starting at `v0.1.0`.
+- [x] **`CHANGELOG.md`** (Unreleased section ready). [ ] Cut the first semver
+      tag `v0.1.0` when ready — that fires the release workflow.
 - [ ] **Freeze / version the `.team-context/` format.** Early adopters accumulate
       real knowledge; a breaking layout change must be an explicit, migrated
       upgrade (the `init` in-place upgrade path is a good start — document its

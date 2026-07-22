@@ -34,6 +34,10 @@ import (
 // minTurns filters out sessions too short to hold durable knowledge.
 const minTurns = 4
 
+// version is stamped at build time by GoReleaser (-X main.version=…); it stays
+// "dev" for plain `go build`/`go install` of an untagged tree.
+var version = "dev"
+
 func main() {
 	if len(os.Args) < 2 {
 		usage()
@@ -55,6 +59,8 @@ func main() {
 		err = cmdDoctor()
 	case "hook":
 		err = cmdHook(os.Args[2:])
+	case "version", "--version", "-v":
+		fmt.Println("still", version)
 	case "-h", "--help", "help":
 		usage()
 	default:
@@ -83,6 +89,7 @@ Usage:
   still status [--json]             knowledge base, queue and discovery overview
   still doctor                      check the environment end to end
   still hook session-end            (internal) called by the Claude Code plugin
+  still version                     print the build version
 `)
 }
 
