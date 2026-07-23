@@ -56,6 +56,14 @@
 
 body {
   margin: 0;
+  /* The landing page is meant to be taken in at a glance, so it is laid out to
+     fit the viewport rather than to a fixed rhythm: the column centres itself
+     and the gaps compress on short screens. Tuning fixed margins until one
+     window height happens to fit is how a page ends up with a scrollbar on
+     every other machine. */
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
   background: var(--canvas);
   color: var(--ink);
   font-family: var(--font-sans);
@@ -90,14 +98,24 @@ code, .mono { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0;
 .topbar a.nav:hover { color: var(--ink); }
 .avatar { width: 22px; height: 22px; border-radius: var(--r-pill); }
 
-.wrap { max-width: 720px; margin: 0 auto; padding: var(--s-md) var(--s-lg) 96px; }
+.wrap {
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+  padding: clamp(8px, 2vh, 24px) var(--s-lg);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
 .wrap.wide { max-width: 980px; }
 
 .foot {
   border-top: 1px solid var(--hairline);
-  padding: var(--s-lg); text-align: center;
-  color: var(--ink-tertiary); font-size: 12px;
+  padding: var(--s-sm) var(--s-lg); text-align: center;
+  color: var(--ink-tertiary); font-size: 11.5px; line-height: 1.45;
 }
+.dim-sep { opacity: .45; }
 
 /* ---------- the still ---------- */
 /* A raster base plus animated pixels on the same 128 grid.
@@ -110,15 +128,21 @@ code, .mono { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0;
  * scripts/gen-hero.py owns both halves, so they cannot drift apart.
  */
 
-.hero { text-align: center; padding-top: var(--s-xs); }
-.still-figure { display: flex; justify-content: center; margin-bottom: var(--s-md); }
+.hero {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(8px, 1.8vh, 20px);
+}
+.still-figure { display: flex; justify-content: center; }
 
 .still {
   display: block;
-  /* 1:1 with the grid at 2x — any non-integer size resamples the pixels,
-     which is the one thing pixel art cannot survive. */
-  width: 256px;
-  height: 256px;
+  /* 1:1 with the grid. Integer scales only — 1.5x would resample the pixels,
+     which is the one thing pixel art cannot survive — so the choice is 128 or
+     256, and 128 is what lets the whole page be taken in at once. */
+  width: 128px;
+  height: 128px;
 }
 .still__art { image-rendering: pixelated; }
 
@@ -175,15 +199,15 @@ code, .mono { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0;
 /* ---------- hero copy ---------- */
 
 .hero h1 {
-  font-size: clamp(32px, 4.8vw, 50px); font-weight: 600;
+  font-size: clamp(28px, 4vw, 40px); font-weight: 600;
   line-height: 1.08; letter-spacing: -0.035em;
-  margin: 0 0 var(--s-sm); text-wrap: balance; max-width: 18ch;
+  margin: 0; text-wrap: balance; max-width: 18ch;
   margin-left: auto; margin-right: auto;
 }
 .hero h1 em { font-style: normal; color: var(--primary); }
 .hero p.lede {
-  font-size: 17px; color: var(--ink-subtle); max-width: 58ch;
-  margin: 0 auto var(--s-md); letter-spacing: -0.1px;
+  font-size: 16px; color: var(--ink-subtle); max-width: 66ch;
+  margin: 0 auto; letter-spacing: -0.1px;
 }
 
 /* ---------- the command ---------- */
@@ -195,12 +219,12 @@ code, .mono { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0;
 }
 .command-head {
   display: flex; align-items: center; gap: var(--s-xs);
-  padding: var(--s-sm) var(--s-md);
+  padding: var(--s-xs) var(--s-md);
   border-bottom: 1px solid var(--hairline);
   font-size: 13px; color: var(--ink-subtle);
 }
 .command pre {
-  margin: 0; padding: var(--s-md);
+  margin: 0; padding: var(--s-sm) var(--s-md);
   font-family: var(--font-mono); font-size: 13px; line-height: 1.6;
   color: var(--ink-muted); white-space: pre-wrap; word-break: break-word;
 }
@@ -214,12 +238,12 @@ button.copy:hover { background: var(--primary-hover); }
 button.copy.done { background: var(--surface-3); color: var(--success); }
 
 .steps {
-  display: grid; gap: var(--s-sm); margin-top: var(--s-xl);
+  display: grid; gap: var(--s-xs); margin-top: clamp(4px, 1vh, 12px);
   text-align: left;
 }
 .step { display: grid; grid-template-columns: 24px 1fr; gap: var(--s-md); align-items: baseline; }
 .step .n { font-family: var(--font-mono); font-size: 12px; color: var(--primary); }
-.step p { margin: 0; color: var(--ink-subtle); font-size: 15px; }
+.step p { margin: 0; color: var(--ink-subtle); font-size: 13.5px; line-height: 1.45; }
 .step b { color: var(--ink); font-weight: 500; }
 
 /* ---------- pack page ---------- */
