@@ -115,8 +115,10 @@ code, .mono { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0;
 
 .still {
   display: block;
-  width: 128px;   /* 1:1 with the grid — any other size resamples the pixels */
-  height: 128px;
+  /* 1:1 with the grid at 2x — any non-integer size resamples the pixels,
+     which is the one thing pixel art cannot survive. */
+  width: 256px;
+  height: 256px;
 }
 .still__art { image-rendering: pixelated; }
 
@@ -173,7 +175,7 @@ code, .mono { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0;
 /* ---------- hero copy ---------- */
 
 .hero h1 {
-  font-size: clamp(30px, 4.4vw, 44px); font-weight: 600;
+  font-size: clamp(32px, 4.8vw, 50px); font-weight: 600;
   line-height: 1.08; letter-spacing: -0.035em;
   margin: 0 0 var(--s-sm); text-wrap: balance; max-width: 18ch;
   margin-left: auto; margin-right: auto;
@@ -199,7 +201,7 @@ code, .mono { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0;
 }
 .command pre {
   margin: 0; padding: var(--s-md);
-  font-family: var(--font-mono); font-size: 12.5px; line-height: 1.55;
+  font-family: var(--font-mono); font-size: 13px; line-height: 1.6;
   color: var(--ink-muted); white-space: pre-wrap; word-break: break-word;
 }
 button.copy {

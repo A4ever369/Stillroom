@@ -189,21 +189,13 @@ func (h *hub) page(r *http.Request) pageData {
 
 func (h *hub) home(w http.ResponseWriter, r *http.Request) {
 	d := h.page(r)
-	// The text the whole product is built around. It is a prompt, not a shell
-	// command — pasted into whichever agent the person already has open, so it
-	// stays tool-agnostic. It explains itself, because the person pasting it
-	// has never heard of any of this, and because what they are about to do is
-	// give something of theirs to somebody else: that has to be a decision,
-	// not a side effect.
-	d.Command = "Stillroom — turn this session into something I can hand to a teammate.\n" +
-		"\n" +
-		"It distils this session on my machine, lists everything it would share, and\n" +
-		"gives me a link only after I confirm. Whoever I send it to pastes that link\n" +
-		"into their own agent and gets what I learned — no write-up, no meeting.\n" +
-		"My transcript stays on this machine unless I ask for --full.\n" +
-		"\n" +
-		"Install if needed: " + h.installHint + "\n" +
-		"Then run: still publish"
+	// One line, because the thing being copied should be the thing that works —
+	// the explaining belongs on the page, where it does not have to survive a
+	// paste. Written as a request rather than a shell command so the agent
+	// handles installation and PATH itself, which is exactly the part a
+	// copy-pasted `curl ... && still publish` chain gets wrong.
+	d.Command = "Install Stillroom (" + h.installURL() +
+		") and run `still publish` to turn this session into a link I can send someone."
 	render(w, "home.html", d)
 }
 
@@ -237,25 +229,22 @@ func (h *hub) viewPack(w http.ResponseWriter, r *http.Request) {
 // what happens on arrival, because someone is about to let a stranger's
 // material into their agent's context on the strength of a link.
 func (h *hub) pullInvitation(rec Record, id string) string {
-	who := rec.Publisher
-	if who == "" {
-		who = "Someone"
+	return "Install Stillroom (" + h.installURL() +
+		") and run `still pull " + h.baseURL + "/k/" + id + "` to take in what they shared."
+}
+
+// installURL is the bare URL of the installer, for the one-line invitations.
+// installHint is a full shell command; embedding it inside a sentence produced
+// a line with a pipe in the middle that read like an instruction to the reader.
+func (h *hub) installURL() string {
+	if i := strings.Index(h.installHint, "http"); i >= 0 {
+		rest := h.installHint[i:]
+		if j := strings.IndexAny(rest, " |"); j >= 0 {
+			return rest[:j]
+		}
+		return rest
 	}
-	evidence := "Their transcripts were not included — only the conclusions."
-	if rec.Mode == string(pack.ModeFull) {
-		evidence = "They also chose to include their session transcripts, redacted, so I can see how they got there."
-	}
-	return "Stillroom — someone chose to send me what they learned.\n" +
-		"\n" +
-		who + " distilled this from their own sessions and sent me the link below.\n" +
-		evidence + "\n" +
-		"\n" +
-		"Pulling it shows me what is inside before anything is written. It lands in\n" +
-		".team-context/received/, attributed to them, and stays out of this project's\n" +
-		"own facts — it is their report about their environment, not truth about mine.\n" +
-		"\n" +
-		"Install it if needed: " + h.installHint + "\n" +
-		"Then run: still pull " + h.baseURL + "/k/" + id
+	return h.baseURL + "/install.sh"
 }
 
 // rawPack is the explicit machine route. /k/{id} already returns the pack to
