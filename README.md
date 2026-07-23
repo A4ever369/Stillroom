@@ -46,6 +46,77 @@ Two design rules make this work:
    learning *conflicting* things produce a git conflict — exactly the case
    that deserves a human decision.
 
+## What it actually produces
+
+A real run, start to finish. Every block below is verbatim tool output. The
+input session ships with this repo — see
+[`testdata/corpus/example-ci-pg-image`](testdata/corpus/example-ci-pg-image) —
+so you can run it yourself. Distillation goes through a model, so your wording
+will differ; what should not differ is *which* knowledge comes out.
+
+**In** — an ordinary debugging session. CI is red, local is green:
+
+```
+user       The integration job has been red since this morning, but it's green locally.
+assistant  CI uses stock postgres:16, but the migrations create the vector extension.
+           Locally you run pgvector/pgvector:pg16, so the extension exists locally
+           but not in CI.
+tool       ERROR: extension "vector" is not available (SQLSTATE 0A000)
+…          (10 turns)
+```
+
+**Distill** — one local model call through your own `claude -p`:
+
+```console
+$ still distill --transcript testdata/corpus/example-ci-pg-image/transcript.jsonl
+distilling transcript.jsonl (10 turns)...
+  wrote .team-context/facts/ci.postgres.pgvector-image.md
+  wrote .team-context/facts/deploy.migrations.order-before-cutover.md
+
+review with: git diff .team-context/
+then commit — the knowledge diff rides your normal PR.
+```
+
+**Out** — plain markdown files, one fact per file:
+
+```markdown
+---
+id: ci.postgres.pgvector-image
+scope: repo:acme
+observed_at: 2026-07-18T14:12:30Z
+source: claude-code://eval-example-ci-pg
+confidence: high
+status: active
+---
+The CI Postgres service in .github/workflows/ci.yml must use the
+pgvector/pgvector:pg16 image, not stock postgres:16. Migrations run
+CREATE EXTENSION vector, which fails on stock postgres with 'extension
+"vector" is not available' (SQLSTATE 0A000). Local dev and prod also use
+pgvector/pgvector:pg16.
+```
+
+Note what it did *not* keep: the `grep` invocation, the literal edit that
+changed one line of `ci.yml`, the line number the image was found on. Those are
+what happened once; the fact is what stays true. The second file captures a
+separate durable thing the same session revealed — the deploy-order gotcha the
+user mentioned in passing at the end.
+
+**Review** — the bot comments this on the PR that carries the change:
+
+> ### 🧠 Team knowledge changes
+>
+> **Facts:** ➕ 2 new · ✏️ 0 updated · ➖ 0 removed
+> **Playbooks:** ➕ 0 new · ✏️ 0 updated · ➖ 0 removed
+>
+> #### ➕ New facts
+> - **`ci.postgres.pgvector-image`** _(high)_: The CI Postgres service in .github/workflows/ci.yml must use the pgvector/pgvector:pg16 image, not stock postgres:16. Migrations run CREATE EXTENSION vector, which fails on stock postgres with 'extens…
+> - **`deploy.migrations.order-before-cutover`** _(high)_: Migrations (including CREATE EXTENSION vector) must complete on the target database before traffic is cut over to the new app version. A previous deploy broke because cutover happened first and the ne…
+
+**Then it disappears.** `still materialize` renders the active facts into
+`.team-context/materialized.md`, which `CLAUDE.md` imports. Your teammate runs
+`git pull` and their next session already knows why CI needs the pgvector image
+— they never ran a Stillroom command.
+
 ## Quickstart
 
 ```bash
@@ -80,15 +151,7 @@ distilled knowledge is tool-agnostic once it lands.
 Knowledge changes don't need a separate review surface — they ride your
 normal PR. Drop [`.github/workflows/knowledge-diff.yml`](.github/workflows/knowledge-diff.yml)
 into a repo and, whenever a PR touches `.team-context/facts` or `/playbooks`,
-a bot comments a plain-language diff:
-
-```
-### 🧠 Team knowledge changes
-Facts: ➕ 1 new · ✏️ 0 updated · ➖ 0 removed
-
-#### ➕ New facts
-- ci.postgres.image (high): CI's Postgres service must use pgvector/pgvector:pg16 …
-```
+a bot comments the plain-language diff shown above.
 
 The diff is semantic (by fact ID, not text): a no-op rewrite shows nothing, and
 a fact whose observation advanced is flagged as a supersession. It runs on

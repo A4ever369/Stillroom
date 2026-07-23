@@ -53,8 +53,11 @@ key-laden sessions and no visible leaks. What remains is mostly mechanical.
       redaction inside CJK context), a first-class use case, not documentation.
 - [x] **`CONTRIBUTING.md`** — build/test/lint, the hard rules, the
       invariant-organized test layout, and how to add an adapter. (2026-07-22)
-- [ ] **Show real output in the README.** A short before/after: a session digest
-      in, the fact files + PR comment out. A GIF of `init → distill → review`.
+- [~] **Show real output in the README.** (2026-07-23) A verbatim before/after
+      is in place — session turns in, the distill run, the fact file, the PR
+      comment, and the point where it disappears into the teammate's next
+      session. The input ships in `testdata/corpus/` so a reader can run it.
+      Still missing: a GIF of `init → distill → review`.
 - [x] **README, quickstart, privacy section, commands table.** (verified E2E)
 - [x] **LICENSE (Apache-2.0).**
 
