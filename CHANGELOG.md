@@ -8,6 +8,13 @@ place.
 
 ## [Unreleased]
 
+## [0.1.0] — 2026-07-23
+
+First release. The knowledge loop works end to end — distil a session, review
+the diff in a pull request, and every teammate's next session starts with what
+the team already knows — and knowledge can now also travel as a link to one
+person who never has to open your repository.
+
 ### Added
 - **Sharing knowledge as a link.** `still publish` distils, shows you every item
   that would leave your machine, and gives you a link; whoever you send it to
