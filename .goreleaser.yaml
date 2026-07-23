@@ -34,6 +34,9 @@ builds:
 archives:
   - id: still
     ids: [still]
+    # install.sh fetches still_<version>_<os>_<arch>.<ext>. The default template
+    # uses ProjectName ("Stillroom"), which would 404 every install.
+    name_template: "still_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     formats: [tar.gz]
     format_overrides:
       - goos: windows
@@ -51,25 +54,36 @@ archives:
       - LICENSE
       - docs/self-hosting.md
 
-# The landing page tells people to `brew install`, so that has to be real.
-# GoReleaser writes the formula into a tap repo on every tag; the tap repo
-# (A4ever369/homebrew-tap) must exist and HOMEBREW_TAP_TOKEN must be set in
-# the release workflow, or this step is skipped with a warning.
-brews:
+# The landing page tells people `brew install` is an option, so it has to be
+# real. GoReleaser writes the cask into a tap repo on every tag; the tap repo
+# (A4ever369/homebrew-tap) must exist and HOMEBREW_TAP_TOKEN must be set in the
+# release workflow, or this step skips itself.
+#
+# Casks rather than formulae: Homebrew now wants pre-built binaries distributed
+# as casks, and `brews:` is deprecated.
+homebrew_casks:
   - name: still
     ids: [still]
     repository:
       owner: A4ever369
       name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-      # Never fail a release because the tap is unreachable: the binaries are
-      # the release, the formula is a convenience.
-      skip_upload: "{{ if .Env.HOMEBREW_TAP_TOKEN }}false{{ else }}true{{ end }}"
-    homepage: https://github.com/A4ever369/Stillroom
+      token: '{{ index .Env "HOMEBREW_TAP_TOKEN" }}'
+    # Never fail a release because the tap is unreachable or unconfigured: the
+    # binaries are the release, the cask is a convenience.
+    skip_upload: '{{ if index .Env "HOMEBREW_TAP_TOKEN" }}false{{ else }}true{{ end }}'
+    homepage: https://stillroom.sh
     description: Distill your AI coding sessions into team knowledge, and hand it to someone as a link.
     license: Apache-2.0
-    test: |
-      system "#{bin}/still", "version"
+    # The binaries are not Apple-notarized, so macOS would quarantine them and
+    # refuse to run. Strip the attribute the same way Homebrew does for other
+    # unsigned tools, rather than leaving people with a binary that dies on
+    # first launch.
+    hooks:
+      post:
+        install: |
+          if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/still"]
+          end
 
 checksum:
   name_template: checksums.txt
