@@ -73,6 +73,7 @@ const MaxPackBytes = 8 << 20
 type hub struct {
 	store *Store
 	auth  *Auth
+	rate  *rateLimiter
 	// baseURL is what appears in the links people paste to each other, so it
 	// must be the public address, not whatever the process happens to bind.
 	baseURL string
@@ -113,7 +114,7 @@ func main() {
 	if hint == "" {
 		hint = "curl -fsSL " + baseURL + "/install.sh | sh"
 	}
-	h := &hub{store: store, auth: auth, baseURL: baseURL, installHint: hint}
+	h := &hub{store: store, auth: auth, rate: newRateLimiter(), baseURL: baseURL, installHint: hint}
 	if names := auth.Providers(); len(names) == 0 {
 		log.Println("sign-in is not configured — set GITHUB_CLIENT_ID/SECRET and/or GOOGLE_CLIENT_ID/SECRET")
 		log.Println("running in anonymous mode: packs will carry no publisher, and receivers are told so")
@@ -273,12 +274,21 @@ func (h *hub) rawPack(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *hub) createPack(w http.ResponseWriter, r *http.Request) {
+	// Publishing never requires an account. Someone who pasted one line into
+	// their agent should get a link out of it, not a sign-up form; signing in
+	// buys attribution and a history, not permission. Anonymous callers get an
+	// hourly budget instead — the open-endpoint risk is volume, not identity.
 	acc, signedIn := h.auth.Current(r)
-	if h.auth.Enabled() && !signedIn {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{
-			"error": "sign in first: run `still auth login`",
-		})
-		return
+	if !signedIn {
+		if ok, wait := h.rate.allow(clientIP(r), anonUploadsPerHour); !ok {
+			w.Header().Set("Retry-After", fmt.Sprint(int(wait.Seconds())))
+			writeJSON(w, http.StatusTooManyRequests, map[string]string{
+				"error": fmt.Sprintf(
+					"too many anonymous publishes from here — try again in %d minutes, or run `still auth login` to lift the limit",
+					int(wait.Minutes())+1),
+			})
+			return
+		}
 	}
 
 	raw, err := io.ReadAll(io.LimitReader(r.Body, MaxPackBytes+1))

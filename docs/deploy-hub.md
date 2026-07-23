@@ -87,8 +87,12 @@ device flow (`still auth login`), so a terminal never prompts for one either.
 Account ids are namespaced by provider, so a GitHub id and a Google id are
 never confused for the same person.
 
-**With sign-in enabled, anonymous publishing is refused.** That is the point:
-an open upload endpoint on a public host is somebody else's free storage.
+**Publishing never requires an account, even with sign-in enabled.** Someone who
+pasted one line into their agent should get a link out of it, not a sign-up
+form. Anonymous callers get an hourly budget per address instead — generous
+enough that a real person sharing their work never meets it, small enough that
+the endpoint is not worth abusing. Signing in lifts the budget, because at that
+point there is someone to hold responsible.
 
 ## Before pointing the domain at it
 
@@ -98,9 +102,8 @@ an open upload endpoint on a public host is somebody else's free storage.
 2. **Check the install line renders correctly** at `https://stillroom.sh/` — it
    is derived from `-base-url`, so a wrong base URL produces a copy button that
    hands people a broken command.
-3. **Decide on sign-in before launch, not after.** Turning it on later locks out
-   everyone who published anonymously from re-publishing, because anonymous
-   uploads stop being accepted.
+3. **Sign-in can be turned on at any time.** It adds attribution and history; it
+   does not take publishing away from anyone who was already using it.
 
 ## Health and observability
 

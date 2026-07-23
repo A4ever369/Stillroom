@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -24,7 +25,7 @@ func testHub(t *testing.T, signIn bool) *hub {
 	if signIn {
 		a = NewAuth(testProvider("github"))
 	}
-	return &hub{store: st, auth: a, baseURL: "https://example.test"}
+	return &hub{store: st, auth: a, rate: newRateLimiter(), baseURL: "https://example.test"}
 }
 
 func samplePack(t *testing.T) (pack.Pack, []byte) {
@@ -156,10 +157,10 @@ func TestRevokeViaAPIWithTokenOnly(t *testing.T) {
 	}
 }
 
-// Attribution is the receiver's only trust signal, so it cannot be claimed by
-// the uploader — with sign-in configured, an unauthenticated upload is refused
-// outright rather than stored unattributed.
-func TestPublisherCannotBeSelfAssertedAndAuthIsRequiredWhenConfigured(t *testing.T) {
+// Attribution is the receiver's only trust signal, so a publisher name in an
+// uploaded document is never believed — it is stamped from the session or left
+// empty. Publishing itself stays open whether or not sign-in is configured.
+func TestPublisherCannotBeSelfAsserted(t *testing.T) {
 	h := testHub(t, true)
 	p, _ := samplePack(t)
 	p.Publisher = "someone-important"
@@ -167,11 +168,10 @@ func TestPublisherCannotBeSelfAssertedAndAuthIsRequiredWhenConfigured(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	if w := post(t, h, "/api/packs", raw); w.Code != http.StatusUnauthorized {
-		t.Fatalf("want 401 without sign-in, got %d", w.Code)
+	if w := post(t, h, "/api/packs", raw); w.Code != http.StatusCreated {
+		t.Fatalf("publishing must not require an account, got %d: %s", w.Code, w.Body)
 	}
 
-	// Anonymous mode (no OAuth configured) accepts it, but strips the claim.
 	anon := testHub(t, false)
 	w := post(t, anon, "/api/packs", raw)
 	if w.Code != http.StatusCreated {
@@ -366,5 +366,49 @@ func TestSignInPageAppearsOnlyWithAChoice(t *testing.T) {
 	w = do(one, httptest.NewRequest(http.MethodGet, "/auth/start", nil))
 	if w.Code != http.StatusSeeOther {
 		t.Errorf("one provider should redirect straight out, got %d", w.Code)
+	}
+}
+
+// An open upload endpoint is a volume problem, not an identity problem: the
+// budget has to actually stop someone, and it has to say when to come back.
+func TestAnonymousPublishingIsRateLimited(t *testing.T) {
+	h := testHub(t, false)
+	var last *httptest.ResponseRecorder
+	for i := 0; i < anonUploadsPerHour+1; i++ {
+		p, _ := samplePack(t)
+		p.Note = fmt.Sprintf("pack %d", i) // distinct content, so each is a new pack
+		raw, err := p.Encode()
+		if err != nil {
+			t.Fatal(err)
+		}
+		last = post(t, h, "/api/packs", raw)
+	}
+	if last.Code != http.StatusTooManyRequests {
+		t.Fatalf("the budget should run out, got %d", last.Code)
+	}
+	if last.Header().Get("Retry-After") == "" {
+		t.Error("a refusal should say when to come back")
+	}
+	if !strings.Contains(last.Body.String(), "still auth login") {
+		t.Error("the refusal should point at the way to lift the limit")
+	}
+}
+
+// Signing in lifts the budget — at that point there is someone to hold
+// responsible.
+func TestSignedInPublishingIsNotRateLimited(t *testing.T) {
+	h := testHub(t, true)
+	tok := "tok"
+	h.auth.tokens[tok] = Account{ID: "github:1", Login: "allen"}
+
+	for i := 0; i < anonUploadsPerHour+3; i++ {
+		p, _ := samplePack(t)
+		p.Note = fmt.Sprintf("signed pack %d", i)
+		raw, _ := p.Encode()
+		req := httptest.NewRequest(http.MethodPost, "/api/packs", strings.NewReader(string(raw)))
+		req.Header.Set("Authorization", "Bearer "+tok)
+		if w := do(h, req); w.Code != http.StatusCreated {
+			t.Fatalf("upload %d: %d %s", i, w.Code, w.Body)
+		}
 	}
 }
