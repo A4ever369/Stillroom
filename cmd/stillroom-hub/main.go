@@ -77,7 +77,7 @@ func main() {
 
 	addr := flag.String("addr", ":8080", "listen address")
 	data := flag.String("data", "./hub-data", "directory for stored packs")
-	base := flag.String("base-url", "", "public base URL (e.g. https://still.sh); defaults to http://localhost<addr>")
+	base := flag.String("base-url", "", "public base URL (e.g. https://stillroom.sh); defaults to http://localhost<addr>")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	installHint := flag.String("install-hint", "",
 		"how the pages tell people to install `still` (default: curl the installer this hub serves)")
@@ -184,15 +184,12 @@ func (h *hub) home(w http.ResponseWriter, r *http.Request) {
 	// not a side effect.
 	d.Command = "Stillroom — turn this session into something I can hand to a teammate.\n" +
 		"\n" +
-		"Everything I worked out here is currently stuck in my head and in this\n" +
-		"transcript. Stillroom reads the session on my machine, distils the parts\n" +
-		"that stay true, and gives me a link. Whoever I send it to pastes that link\n" +
+		"It distils this session on my machine, lists everything it would share, and\n" +
+		"gives me a link only after I confirm. Whoever I send it to pastes that link\n" +
 		"into their own agent and gets what I learned — no write-up, no meeting.\n" +
+		"My transcript stays on this machine unless I ask for --full.\n" +
 		"\n" +
-		"It lists every item before anything is uploaded and I decide whether to send\n" +
-		"it. The transcript itself stays on this machine unless I ask for --full.\n" +
-		"\n" +
-		"Install it if needed: " + h.installHint + "\n" +
+		"Install if needed: " + h.installHint + "\n" +
 		"Then run: still publish"
 	render(w, "home.html", d)
 }

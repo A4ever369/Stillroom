@@ -24,7 +24,11 @@ import (
 // else. The whole product is one line pasted into an agent, so both commands
 // have to work with zero prior setup and explain themselves as they go.
 
-const defaultHub = "https://still.sh"
+// defaultHub is where `still publish` goes when nothing says otherwise, so it
+// has to be a service that exists: a wrong default means every first-time
+// publish fails against a host that was never registered. Override per shell
+// with STILLROOM_HUB, which is also how you point at a self-hosted instance.
+const defaultHub = "https://stillroom.sh"
 
 func hubBase() string {
 	if v := strings.TrimRight(os.Getenv("STILLROOM_HUB"), "/"); v != "" {

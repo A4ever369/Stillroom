@@ -1,14 +1,14 @@
 #!/bin/sh
 # Stillroom installer.
 #
-#   curl -fsSL https://still.sh/install.sh | sh
+#   curl -fsSL https://stillroom.sh/install.sh | sh
 #
 # Downloads the release binary for this platform, VERIFIES ITS CHECKSUM against
 # the signed checksums.txt from the same release, and installs it. If you would
 # rather read it first — which is the right instinct for anything you pipe into
 # a shell — download it, read it, then run it:
 #
-#   curl -fsSLO https://still.sh/install.sh && less install.sh && sh install.sh
+#   curl -fsSLO https://stillroom.sh/install.sh && less install.sh && sh install.sh
 #
 # Environment:
 #   STILLROOM_VERSION   install a specific tag instead of the latest release
