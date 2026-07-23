@@ -1,10 +1,19 @@
-.PHONY: build test vet fmt still eval eval-list
+.PHONY: build test vet fmt still stillroomd serve eval eval-list
 
 build:
 	go build ./...
 
 still:
 	go build -o bin/still ./cmd/still
+
+# The self-hostable server: org-wide search over every repo's knowledge.
+stillroomd:
+	go build -o bin/stillroomd ./cmd/stillroomd
+
+# Run it against everything you have checked out — the fastest way to see
+# whether cross-repo search is worth anything on your own knowledge.
+serve: stillroomd
+	./bin/stillroomd -scan $(HOME)/code
 
 test:
 	go test ./...

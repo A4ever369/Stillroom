@@ -94,6 +94,33 @@ The diff is semantic (by fact ID, not text): a no-op rewrite shows nothing, and
 a fact whose observation advanced is flagged as a supersession. It runs on
 first-party GitHub actions only — no third-party dependencies.
 
+## Org-wide search: `stillroomd`
+
+Once more than one repo accumulates knowledge, you want one search box over all
+of it. `stillroomd` is a self-hostable server that does exactly that — **a
+single static binary with no database:**
+
+```bash
+make stillroomd && ./bin/stillroomd -scan ~/code
+# or: docker run -p 8080:8080 -v /srv/checkouts:/checkouts:ro stillroomd -scan /checkouts
+```
+
+It works because of one decision: **the server owns no source of truth.** Every
+document it serves is derived from a `.team-context/` directory in a repo your
+team already owns, so there is nothing to back up, nothing a compromise would
+expose that your git host did not already have, and no exit cost — stop the
+container and not one byte of knowledge is lost.
+
+Two invariants it is built never to break, both covered by tests:
+
+- **It never reads the evidence plane.** Transcripts stay on the machine that
+  produced them; a fact's `source` is a citation, not a link.
+- **It never writes to a repo.** Knowledge changes ride pull requests, so the
+  review that makes the knowledge trustworthy is never routed around.
+
+There is also a JSON API (`/api/search?q=…`) so CI jobs and agents can query
+the org's knowledge directly. See [`docs/self-hosting.md`](docs/self-hosting.md).
+
 ## A fact file
 
 ```markdown

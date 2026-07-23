@@ -9,6 +9,16 @@ place.
 ## [Unreleased]
 
 ### Added
+- **`stillroomd`** — a self-hostable server giving a team one search box over
+  every repo's distilled knowledge. A single static binary with **no database**:
+  it indexes `.team-context/` directories from git checkouts (`-scan DIR` /
+  `-repo NAME=PATH`), so nothing needs backing up and stopping the container
+  loses no knowledge. Ships a search UI, per-document pages with cross-repo
+  "related" results, a `/api/search` JSON API for CI and agents, `/healthz`, and
+  a distroless `Dockerfile`. It never reads session transcripts and never writes
+  to a repo (`docs/self-hosting.md`, design §17).
+- `internal/index`: read-only, in-memory search over many knowledge planes, with
+  CJK support via character bigrams (no segmenter, zero dependencies).
 - Codex CLI adapter: `still distill` discovers and digests
   `~/.codex/sessions/**/rollout-*.jsonl` alongside Claude Code sessions. The
   digest type is now tool-agnostic (`internal/session`).

@@ -318,3 +318,79 @@ Origin and the point where it clicks: still = the still (the root of distill); a
 Naming research conclusion (2026-07): Engram (already raised $98M), Tacit, Cairn, Baton, Slipstream, Kindling, Stigmerge, and other candidates are all taken in the AI/dev tool space; Stillroom is essentially clean in that space (only distant small brands in the aromatherapy/journaling category exist).
 
 To do: register the domain (candidates stillroom.dev / stillroom.ai / getstillroom.dev; note that getstillroom.com is already taken by an ambient-sound app), the GitHub org, verify the npm/homebrew package names; run a trademark search before the formal release. The CLI command name has been set to `still` along with the new repo (`still distill` / `still status`). Open the README with two sentences telling the still room book anecdote — this name comes with its own About page.
+
+## 17. The Server Plane: `stillroomd`
+
+Phase 2 (§8, §14) is where a central service earns money, and it is also where
+this kind of product usually dies — an internal tool that demands a database, a
+backup policy and a security review does not get deployed. One decision avoids
+all of that:
+
+> **The server owns no source of truth.**
+
+`stillroomd` indexes `.team-context/` directories out of git checkouts and
+serves search over them. Every document it holds is derived. The index is a
+cache with no authoritative copy of anything.
+
+### 17.1 What that buys
+
+| | Because the server holds only derived data |
+| --- | --- |
+| Deployment | one static binary, no database, no migrations |
+| Backup | nothing to back up; delete the volume, it rebuilds from git |
+| Security review | a compromise exposes nothing that was not already in the git host |
+| Exit cost | stop the container; not one byte of knowledge is lost |
+
+The last row is a *sales* argument, not an engineering one. "If it is useless,
+delete the container and you lose nothing" removes the largest single objection
+to adopting an internal tool.
+
+### 17.2 Invariants (enforced by tests, not by convention)
+
+1. **The server never reads the evidence plane.** Transcripts stay on the
+   machine that produced them; `.team-context/queue/` is machine-private and is
+   never indexed. A fact's `source` field is a *citation*, not a link.
+2. **The server never writes to a repo.** Editing knowledge server-side would
+   route around the PR review that makes the knowledge trustworthy (§13).
+3. **The CLI never requires the server.** The moment any core workflow depends
+   on a central service, the local-first trust argument of §14 collapses.
+
+### 17.3 Permissions: delegate, do not invent
+
+The target model is *if you can read the repo, you can read the repo's
+knowledge* — answered by asking the git host, not by a permission system of our
+own. A second, divergent copy of an org's repo ACLs is a liability. The only
+model that genuinely needs to be built is per-person activity visibility
+(§17.5), and that one is opt-in by construction.
+
+### 17.4 Build order, and why
+
+1. **Cross-repo search** (shipped). The only feature with *no* political
+   surface: nobody objects to finding the pitfall another team already hit.
+2. **Knowledge health.** Staleness, cross-repo contradictions, orphaned
+   knowledge. This is the retention feature — a knowledge base dies of rot, not
+   of scarcity — and no adjacent product does it.
+3. **Personal activity, consent-first** (§17.5).
+4. **Agent audit and eval.** Aggregate, agent-subject reporting; continuous
+   distillation-quality eval against `eval/baseline.json`.
+
+Search before activity is deliberate. Search is uncontested value; activity is
+contested value. Shipping them in the wrong order spends the trust needed for
+everything else.
+
+### 17.5 The activity feature, and the line it must not cross
+
+A per-person view of "what did they do today", derived from their sessions, is
+the highest-value and highest-risk thing in the roadmap.
+
+- ❌ A manager opening a report's page to see their day is employee
+  surveillance. It ends adoption of the whole product, permanently.
+- ✅ A summary the person generated, reviewed, edited and chose to publish is an
+  asynchronous standup, and people want it.
+
+So the order is fixed: `still standup` (local, produces *my* draft, I decide
+whether to publish) ships **before** any team-wide activity view, and the
+server only ever receives what a person explicitly published. Any view whose
+subject is a *person* requires that person's consent; views whose subject is an
+*agent* ("41 agent sessions touched production config this week") do not, and
+are the form the compliance demand should be answered in.

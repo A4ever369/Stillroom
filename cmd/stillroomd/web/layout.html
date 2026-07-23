@@ -1,0 +1,38 @@
+{{define "head"}}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/static/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚗️</text></svg>">
+{{end}}
+
+{{define "header"}}
+<header class="topbar">
+  <a class="brand" href="/"><svg class="brand-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="15" height="15" aria-hidden="true"><path d="M9 2h6M10 2v5.2L4.8 17.4A2.6 2.6 0 0 0 7.1 21h9.8a2.6 2.6 0 0 0 2.3-3.6L14 7.2V2"/></svg> Stillroom</a>
+  <form class="search" action="/" method="get" role="search">
+    <input type="search" name="q" value="{{.Query.Q}}" placeholder="Search your team's knowledge…" autofocus autocomplete="off">
+    {{if .Query.Repo}}<input type="hidden" name="repo" value="{{.Query.Repo}}">{{end}}
+    {{if .Query.Kind}}<input type="hidden" name="kind" value="{{.Query.Kind}}">{{end}}
+  </form>
+  <span class="topbar-meta">{{.Docs}} documents · {{len .Repos}} repos</span>
+</header>
+{{end}}
+
+{{define "footer"}}
+<footer class="footer">
+  <span>stillroomd {{.Version}}</span>
+  <span class="dot">·</span>
+  <span>index rebuilt {{ago .BuiltAt}}</span>
+  <span class="dot">·</span>
+  <span class="footer-note">Derived from committed <code>.team-context/</code> only — session transcripts never reach this server.</span>
+</footer>
+{{end}}
+
+{{define "chips"}}
+<span class="chips">
+  <a class="chip chip-repo" href="/?repo={{.Repo}}">{{.Repo}}</a>
+  <span class="chip chip-kind chip-{{.Kind}}">{{.Kind}}</span>
+  {{if .Scope}}<span class="chip">{{.Scope}}</span>{{end}}
+  {{if .Confidence}}<span class="chip chip-conf-{{.Confidence}}">{{.Confidence}}</span>{{end}}
+  {{if ne (printf "%s" .Status) "active"}}<span class="chip chip-status">{{.Status}}</span>{{end}}
+</span>
+{{end}}

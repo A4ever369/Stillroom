@@ -1,0 +1,74 @@
+{{define "search.html"}}<!doctype html>
+<html lang="en">
+<head>{{template "head" .}}<title>{{if .Query.Q}}{{.Query.Q}} · {{end}}Stillroom</title></head>
+<body>
+{{template "header" .}}
+
+<main class="layout">
+  <aside class="sidebar">
+    <div class="facet">
+      <h2>Repositories</h2>
+      <ul class="facet-list">
+        <li><a class="facet-item{{if not .Query.Repo}} on{{end}}" href="/?q={{.Query.Q}}">All<span class="count">{{.Docs}}</span></a></li>
+        {{range .Repos}}
+        <li><a class="facet-item{{if eq $.Query.Repo .Name}} on{{end}}" href="/?q={{$.Query.Q}}&amp;repo={{.Name}}">
+          <span class="facet-name" title="{{.Name}}">{{.Name}}</span><span class="count">{{add .Facts .Playbooks}}</span>
+        </a></li>
+        {{end}}
+      </ul>
+    </div>
+
+    <div class="facet">
+      <h2>Type</h2>
+      <ul class="facet-list">
+        <li><a class="facet-item{{if not .Query.Kind}} on{{end}}" href="{{qs .Query "kind" ""}}">All</a></li>
+        <li><a class="facet-item{{if eq (printf "%s" .Query.Kind) "fact"}} on{{end}}" href="{{qs .Query "kind" "fact"}}">Facts</a></li>
+        <li><a class="facet-item{{if eq (printf "%s" .Query.Kind) "playbook"}} on{{end}}" href="{{qs .Query "kind" "playbook"}}">Playbooks</a></li>
+      </ul>
+    </div>
+
+    <div class="facet">
+      <h2>Freshness</h2>
+      <ul class="facet-list">
+        <li><a class="facet-item{{if eq .Query.Stale 0}} on{{end}}" href="{{qs .Query "stale" ""}}">Any age</a></li>
+        <li><a class="facet-item{{if eq .Query.Stale 90}} on{{end}}" href="{{qs .Query "stale" "90"}}">Unverified 90d+</a></li>
+        <li><a class="facet-item{{if eq .Query.Stale 180}} on{{end}}" href="{{qs .Query "stale" "180"}}">Unverified 180d+</a></li>
+      </ul>
+      <p class="facet-note">Old knowledge is not wrong — it is unverified. Use this to find what needs a human to re-confirm.</p>
+    </div>
+  </aside>
+
+  <section class="results">
+    <div class="results-head">
+      <h1>{{if .Query.Q}}{{.Total}} result{{if ne .Total 1}}s{{end}} for “{{.Query.Q}}”{{else}}{{.Total}} document{{if ne .Total 1}}s{{end}}{{end}}</h1>
+      {{if or .Query.Repo .Query.Kind .Query.Stale}}<a class="clear" href="/?q={{.Query.Q}}">clear filters</a>{{end}}
+    </div>
+
+    {{if not .Hits}}
+      <div class="empty">
+        <p>Nothing matched.</p>
+        <p class="empty-hint">Knowledge only exists here once someone ran <code>still distill</code> and merged the PR. An empty answer is a real answer: nobody on the team has written this down yet.</p>
+      </div>
+    {{end}}
+
+    <ul class="hits">
+      {{range .Hits}}
+      <li class="hit">
+        <a class="hit-title" href="/d?repo={{.Doc.Repo}}&amp;kind={{.Doc.Kind}}&amp;id={{.Doc.ID}}">{{.Doc.Title}}</a>
+        <p class="hit-body">{{.Snippet}}</p>
+        <div class="hit-meta">
+          {{template "chips" .Doc}}
+          <span class="age{{if stale .Doc 180}} age-stale{{end}}" title="{{date .Doc.At}}">{{ago .Doc.At}}</span>
+        </div>
+      </li>
+      {{end}}
+    </ul>
+
+    {{if .Truncated}}<p class="truncated">Showing the top {{len .Hits}} of {{.Total}} — narrow the query or filter by repo.</p>{{end}}
+  </section>
+</main>
+
+{{template "footer" .}}
+</body>
+</html>
+{{end}}

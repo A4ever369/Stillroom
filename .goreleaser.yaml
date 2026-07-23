@@ -19,8 +19,21 @@ builds:
     ldflags:
       - -s -w -X main.version={{ .Version }}
 
+  # The self-hostable server ships alongside the CLI so a team can run the
+  # org-wide index without building from source.
+  - id: stillroomd
+    main: ./cmd/stillroomd
+    binary: stillroomd
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
 archives:
   - id: still
+    ids: [still]
     formats: [tar.gz]
     format_overrides:
       - goos: windows
@@ -28,6 +41,15 @@ archives:
     files:
       - README.md
       - LICENSE
+
+  - id: stillroomd
+    ids: [stillroomd]
+    name_template: "stillroomd_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    files:
+      - README.md
+      - LICENSE
+      - docs/self-hosting.md
 
 checksum:
   name_template: checksums.txt

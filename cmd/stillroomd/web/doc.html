@@ -1,0 +1,60 @@
+{{define "doc.html"}}<!doctype html>
+<html lang="en">
+<head>{{template "head" .}}<title>{{.Doc.Title}} · Stillroom</title></head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/"><svg class="brand-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="15" height="15" aria-hidden="true"><path d="M9 2h6M10 2v5.2L4.8 17.4A2.6 2.6 0 0 0 7.1 21h9.8a2.6 2.6 0 0 0 2.3-3.6L14 7.2V2"/></svg> Stillroom</a>
+  <form class="search" action="/" method="get" role="search">
+    <input type="search" name="q" placeholder="Search your team's knowledge…" autocomplete="off">
+  </form>
+</header>
+
+<main class="layout layout-doc">
+  <article class="doc">
+    <div class="doc-kind">{{.Doc.Kind}}</div>
+    <h1 class="doc-title">{{.Doc.Title}}</h1>
+    <div class="doc-meta">{{template "chips" .Doc}}</div>
+
+    <div class="doc-body">{{.Doc.Body}}</div>
+
+    <dl class="doc-props">
+      <dt>{{if eq (printf "%s" .Doc.Kind) "fact"}}Observed{{else}}Updated{{end}}</dt>
+      <dd>{{date .Doc.At}} <span class="muted">({{ago .Doc.At}})</span></dd>
+      <dt>Repository</dt>
+      <dd><a href="/?repo={{.Doc.Repo}}">{{.Doc.Repo}}</a></dd>
+      {{if .Doc.Source}}<dt>Evidence</dt><dd><code>{{.Doc.Source}}</code></dd>{{end}}
+      <dt>File</dt>
+      <dd><code>.team-context/{{if eq (printf "%s" .Doc.Kind) "fact"}}facts{{else}}playbooks{{end}}/{{.Doc.ID}}.md</code></dd>
+    </dl>
+
+    <p class="doc-note">
+      The evidence reference points at a session on the machine that produced it.
+      It is a citation, not a link — transcripts never leave that machine.
+      To change this knowledge, edit the file above and open a pull request:
+      review happens in your repo, not here.
+    </p>
+  </article>
+
+  <aside class="related">
+    <h2>Related across the org</h2>
+    {{if not .Related}}<p class="muted">Nothing related found.</p>{{end}}
+    <ul class="related-list">
+      {{range .Related}}
+      <li>
+        <a href="/d?repo={{.Doc.Repo}}&amp;kind={{.Doc.Kind}}&amp;id={{.Doc.ID}}">{{.Doc.Title}}</a>
+        <div class="related-meta"><span class="chip chip-repo">{{.Doc.Repo}}</span> <span class="age">{{ago .Doc.At}}</span></div>
+      </li>
+      {{end}}
+    </ul>
+    <p class="facet-note">Knowledge from other teams that shares vocabulary with this one. This is the reason a shared index exists at all.</p>
+  </aside>
+</main>
+
+<footer class="footer">
+  <span>stillroomd {{.Version}}</span>
+  <span class="dot">·</span>
+  <span class="footer-note">Derived from committed <code>.team-context/</code> only — session transcripts never reach this server.</span>
+</footer>
+</body>
+</html>
+{{end}}
