@@ -1,5 +1,9 @@
 bin/
 *.test
+# `go build ./cmd/X` with no -o drops the binary in the repo root.
+/still
+/stillroomd
+/stillroom-hub
 .env
 .team-context/queue/
 # L5 eval run output is machine-local; eval/baseline.json IS committed.
