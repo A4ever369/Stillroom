@@ -99,85 +99,75 @@ code, .mono { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0;
   color: var(--ink-tertiary); font-size: 12px;
 }
 
-/* ---------- the knowledge still ---------- */
-/* The figure is the thesis: a noisy session goes in, one durable fragment
-   survives the condenser, and it lands as an attributed card — not another
-   flask. Lavender is not "liquid" here; it marks the one thing being kept.
-   Pixel art, so everything is on the integer grid and motion is steps() only:
-   a fragment easing between pixels is just a blurry dot. */
+/* ---------- the still ---------- */
+/* A raster base plus animated pixels on the same 128 grid.
+ *
+ * The illustration carries 32 colours of glass, copper and stone shading —
+ * more than hand-authored rects can express — so it ships as a PNG. Motion is
+ * authored separately: an image model redraws the whole picture each time, so
+ * generated frames make the apparatus jitter by a pixel. One fixed base cannot
+ * jitter, and everything that moves is placed against it by coordinate.
+ * scripts/gen-hero.py owns both halves, so they cannot drift apart.
+ */
 
 .hero { text-align: center; padding-top: var(--s-xs); }
 .still-figure { display: flex; justify-content: center; margin-bottom: var(--s-md); }
 
 .still {
   display: block;
-  width: clamp(132px, 19vw, 168px);
-  height: auto;
-  aspect-ratio: 4 / 3;
-  image-rendering: pixelated;
-
-  /* Semantic aliases, so every part stays theme-aware through the tokens. */
-  --still-outline: var(--hairline-strong);
-  --still-raw: var(--ink-tertiary);
-  --still-card: var(--surface-1);
-  --still-copy: var(--ink-subtle);
-  --still-signal: var(--primary);
+  width: 128px;   /* 1:1 with the grid — any other size resamples the pixels */
+  height: 128px;
 }
+.still__art { image-rendering: pixelated; }
 
-.still__outline   { fill: var(--still-outline); }
-.still__card-fill { fill: var(--still-card); }
-.still__raw       { fill: var(--still-raw); opacity: .58; }
-.still__heat      { fill: var(--still-raw); opacity: .42; }
-.still__fact-line { fill: var(--still-copy); opacity: .72; }
+/* Animated pixels sit above the art and inherit the palette by role. */
+.p--hot    { fill: #ffd9a0; }
+.p--warm   { fill: #ff9a4d; }
+.p--bubble { fill: #d8c4ff; opacity: .75; }
+.p--drop,
+.p--splash { fill: #c9a8ff; }
 
-.still__chosen,
-.still__essence,
-.still__fact-dot { fill: var(--still-signal); }
+/* Every frame of a layer is present in the DOM; the animation reveals one at a
+   time with steps(1). Nothing moves — pixels appear and disappear, which is
+   what keeps pixel art from smearing between positions. */
+.lay { opacity: 0; }
 
-.still__chosen   { opacity: .22; animation: still-select 5.2s steps(1, end) infinite; }
-.still__essence  { opacity: 0;   animation: still-travel 5.2s steps(1, end) infinite; }
-.still__fact-dot { opacity: .38; animation: still-arrive 5.2s steps(1, end) infinite; }
+.lay--fire    { animation: f4 .52s steps(1, end) infinite; }
+.lay--bubbles { animation: f8 3.2s steps(1, end) infinite; }
+.lay--drip    { animation: f8 2.8s steps(1, end) infinite; }
 
-/* Each pixel already sits at its grid position; the animation only reveals
-   them in sequence, so there is nothing to interpolate. */
-.still__essence.e0  { animation-delay: 0s; }
-.still__essence.e1  { animation-delay: .28s; }
-.still__essence.e2  { animation-delay: .56s; }
-.still__essence.e3  { animation-delay: .84s; }
-.still__essence.e4  { animation-delay: 1.12s; }
-.still__essence.e5  { animation-delay: 1.40s; }
-.still__essence.e6  { animation-delay: 1.68s; }
-.still__essence.e7  { animation-delay: 1.96s; }
-.still__essence.e8  { animation-delay: 2.24s; }
-.still__essence.e9  { animation-delay: 2.52s; }
-.still__essence.e10 { animation-delay: 2.80s; }
-.still__essence.e11 { animation-delay: 3.08s; }
-.still__essence.e12 { animation-delay: 3.36s; }
+.lay--fire.f0 { animation-delay: 0s; }
+.lay--fire.f1 { animation-delay: .13s; }
+.lay--fire.f2 { animation-delay: .26s; }
+.lay--fire.f3 { animation-delay: .39s; }
 
-@keyframes still-select {
-  0%, 15%       { opacity: .95; }
-  15.01%, 100%  { opacity: .22; }
-}
-@keyframes still-travel {
-  0%, 5.8%      { opacity: .95; }
-  5.81%, 100%   { opacity: 0; }
-}
-@keyframes still-arrive {
-  0%, 68%       { opacity: .38; }
-  68.01%, 88%   { opacity: 1; }
-  88.01%, 100%  { opacity: .38; }
-}
+.lay--bubbles.f0 { animation-delay: 0s; }
+.lay--bubbles.f1 { animation-delay: .4s; }
+.lay--bubbles.f2 { animation-delay: .8s; }
+.lay--bubbles.f3 { animation-delay: 1.2s; }
+.lay--bubbles.f4 { animation-delay: 1.6s; }
+.lay--bubbles.f5 { animation-delay: 2.0s; }
+.lay--bubbles.f6 { animation-delay: 2.4s; }
+.lay--bubbles.f7 { animation-delay: 2.8s; }
+
+.lay--drip.f0 { animation-delay: 0s; }
+.lay--drip.f1 { animation-delay: .35s; }
+.lay--drip.f2 { animation-delay: .7s; }
+.lay--drip.f3 { animation-delay: 1.05s; }
+.lay--drip.f4 { animation-delay: 1.4s; }
+.lay--drip.f5 { animation-delay: 1.75s; }
+.lay--drip.f6 { animation-delay: 2.1s; }
+.lay--drip.f7 { animation-delay: 2.45s; }
+
+/* One frame's worth of the cycle visible, the rest hidden. */
+@keyframes f4 { 0%, 24.99% { opacity: 1; } 25%, 100% { opacity: 0; } }
+@keyframes f8 { 0%, 12.49% { opacity: 1; } 12.5%, 100% { opacity: 0; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .still__chosen, .still__essence, .still__fact-dot { animation: none; }
-  .still__chosen, .still__fact-dot { opacity: .9; }
-  .still__essence { opacity: 0; }
-  /* Leave a static dotted route so the transformation stays legible. */
-  .still__essence.e4,
-  .still__essence.e6,
-  .still__essence.e8,
-  .still__essence.e10,
-  .still__essence.e12 { opacity: .34; }
+  .lay { animation: none; opacity: 0; }
+  /* Leave the fire lit and one drop mid-fall, so the picture still tells the
+     story without any movement. */
+  .lay--fire.f0, .lay--drip.f4 { opacity: 1; }
 }
 
 /* ---------- hero copy ---------- */
