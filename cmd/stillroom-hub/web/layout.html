@@ -1,0 +1,29 @@
+{{define "head"}}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/static/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚗️</text></svg>">
+{{end}}
+
+{{define "mark"}}<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 2h6M10 2v5.2L4.8 17.4A2.6 2.6 0 0 0 7.1 21h9.8a2.6 2.6 0 0 0 2.3-3.6L14 7.2V2"/></svg>{{end}}
+
+{{define "topbar"}}
+<header class="topbar">
+  <a class="brand" href="/">{{template "mark"}} the still room</a>
+  <span class="spacer"></span>
+  {{if .Account}}
+    <a class="nav" href="/me">my distillations</a>
+    <img class="avatar" src="{{.Account.Avatar}}" alt="" width="22" height="22">
+    <form method="post" action="/auth/signout"><button class="link" type="submit">sign out</button></form>
+  {{else if .SignIn}}
+    <a class="nav" href="/auth/start">sign in</a>
+  {{end}}
+</header>
+{{end}}
+
+{{define "foot"}}
+<footer class="foot">
+  Distilled locally. Only what you chose to send ever leaves your machine.
+  <br>stillroom-hub {{.Version}}
+</footer>
+{{end}}

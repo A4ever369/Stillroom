@@ -1,0 +1,42 @@
+{{define "me.html"}}<!doctype html>
+<html lang="en">
+<head>{{template "head" .}}<title>My distillations · the still room</title></head>
+<body>
+{{template "topbar" .}}
+
+<main class="wrap wide">
+  <p class="section-title">My distillations</p>
+  {{if not .Records}}
+    <p class="empty">Nothing yet. Run <code>still publish</code> in a repo you have distilled.</p>
+  {{else}}
+  <table>
+    <thead><tr><th>Link</th><th>What</th><th>Mode</th><th>Size</th><th>Opened</th><th>When</th><th></th></tr></thead>
+    <tbody>
+      {{range .Records}}
+      <tr>
+        <td><a href="/k/{{.ID}}">{{.ID}}</a></td>
+        <td>{{if .Note}}{{.Note}}{{else}}{{.Facts}} facts, {{.Playbooks}} playbooks{{end}}</td>
+        <td><span class="chip mode-{{.Mode}}">{{.Mode}}</span></td>
+        <td>{{bytes .Bytes}}</td>
+        <td>{{.Downloads}}×</td>
+        <td>{{ago .CreatedAt}}</td>
+        <td>
+          {{if .Revoked}}<span class="chip">revoked</span>
+          {{else}}<form method="post" action="/k/{{.ID}}/revoke"><button class="link" type="submit">revoke</button></form>{{end}}
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  <div class="warn">
+    <b>Revoking</b>
+    A revoked link stops resolving immediately. It cannot reach anyone who already pulled it —
+    that copy is on their machine now, the same as anything else you have sent someone.
+  </div>
+  {{end}}
+</main>
+
+{{template "foot" .}}
+</body>
+</html>
+{{end}}

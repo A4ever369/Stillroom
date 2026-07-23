@@ -9,6 +9,23 @@ place.
 ## [Unreleased]
 
 ### Added
+- **Sharing knowledge as a link.** `still publish` distils, shows you every item
+  that would leave your machine, and gives you a link; whoever you send it to
+  runs `still pull <link>` and picks up what you learned — no write-up, no
+  meeting. Two modes: `knowledge` (conclusions only; your transcripts never
+  leave) and `--full` (adds redacted session digests, so the reasoning travels
+  too). Received knowledge lands in `.team-context/received/`, attributed to its
+  publisher and kept out of your own `facts/`, framed as quoted material rather
+  than instructions to your agent (`internal/pack`).
+- **`stillroom-hub`** — the service behind the links: stores packs, serves one
+  URL that gives a browser the page and an agent the pack, and hosts the
+  landing page. Sign-in is optional (GitHub OAuth, device flow for the CLI —
+  no password ever reaches this software); publishing anonymously works, and
+  `still revoke <link>` takes a link back using a token issued at publish time.
+- **`scripts/install.sh`**, served at `/install.sh`, so installing is one
+  command instead of a trip to the releases page. It verifies the download
+  against the release checksums and refuses to install unverified bytes.
+- Homebrew formula published to a tap on each release (GoReleaser `brews:`).
 - **`stillroomd`** — a self-hostable server giving a team one search box over
   every repo's distilled knowledge. A single static binary with **no database**:
   it indexes `.team-context/` directories from git checkouts (`-scan DIR` /

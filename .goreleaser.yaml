@@ -51,6 +51,26 @@ archives:
       - LICENSE
       - docs/self-hosting.md
 
+# The landing page tells people to `brew install`, so that has to be real.
+# GoReleaser writes the formula into a tap repo on every tag; the tap repo
+# (A4ever369/homebrew-tap) must exist and HOMEBREW_TAP_TOKEN must be set in
+# the release workflow, or this step is skipped with a warning.
+brews:
+  - name: still
+    ids: [still]
+    repository:
+      owner: A4ever369
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+      # Never fail a release because the tap is unreachable: the binaries are
+      # the release, the formula is a convenience.
+      skip_upload: "{{ if .Env.HOMEBREW_TAP_TOKEN }}false{{ else }}true{{ end }}"
+    homepage: https://github.com/A4ever369/Stillroom
+    description: Distill your AI coding sessions into team knowledge, and hand it to someone as a link.
+    license: Apache-2.0
+    test: |
+      system "#{bin}/still", "version"
+
 checksum:
   name_template: checksums.txt
 

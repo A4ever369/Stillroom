@@ -1,0 +1,57 @@
+{{define "home.html"}}<!doctype html>
+<html lang="en">
+<head>{{template "head" .}}<title>the still room</title></head>
+<body>
+{{template "topbar" .}}
+
+<main class="wrap">
+  <div class="hero">
+    <div class="still-figure">
+      <svg class="still" viewBox="0 0 190 250" role="img" aria-label="An alembic: vapour rises from the flask, condenses in the arm, and drips into the receiver.">
+        <!-- bulb -->
+        <circle class="glass" cx="62" cy="150" r="32"/>
+        <path class="liquid" d="M30 150a32 32 0 0 0 64 0z"/>
+        <!-- neck walls, meeting the bulb where it is 16 wide, and the rim -->
+        <path class="glass" d="M54 119V62M70 119V62M49 62h26"/>
+        <!-- condensing arm, off the side of the neck -->
+        <path class="glass" d="M70 74c26-2 47 16 53 40 3 12 4 20 4 28"/>
+        <!-- vapour off the liquid, up the neck -->
+        <circle class="vapour v1" cx="62" cy="132" r="3"/>
+        <circle class="vapour v2" cx="67" cy="139" r="2.2"/>
+        <circle class="vapour v3" cx="57" cy="137" r="2.6"/>
+        <!-- the condensed drop -->
+        <ellipse class="drop" cx="127" cy="150" rx="3.2" ry="4.4"/>
+        <!-- receiver, under the tip -->
+        <path class="glass" d="M107 186h40v36a9 9 0 0 1-9 9h-22a9 9 0 0 1-9-9z"/>
+        <path class="liquid-dark" d="M107 208h40v14a9 9 0 0 1-9 9h-22a9 9 0 0 1-9-9z"/>
+        <ellipse class="ripple" cx="127" cy="208" rx="14" ry="2.8"/>
+      </svg>
+    </div>
+
+    <h1>Hand someone <em>everything you learned</em>.</h1>
+    <p class="lede">
+      Not a document they will not read. Not a wall of context pasted into chat.
+      One link — they paste it into their own agent and pick up where you left off.
+    </p>
+
+    <div class="command">
+      <div class="command-head">
+        paste this into Claude Code or Codex
+        <button class="copy" type="button" data-copy="{{.Command}}">Copy</button>
+      </div>
+      <pre>{{.Command}}</pre>
+    </div>
+
+    <div class="steps">
+      <div class="step"><span class="n">01</span><p><b>You run it once.</b> Your session is distilled on your machine — the transcript never leaves it unless you say so.</p></div>
+      <div class="step"><span class="n">02</span><p><b>You see exactly what would be shared</b>, item by item, and confirm. Then you get a link.</p></div>
+      <div class="step"><span class="n">03</span><p><b>They paste the link into their agent.</b> It arrives attributed to you, kept separate from their own project's facts.</p></div>
+    </div>
+  </div>
+</main>
+
+{{template "foot" .}}
+<script src="/static/copy.js"></script>
+</body>
+</html>
+{{end}}

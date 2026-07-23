@@ -1,0 +1,20 @@
+{{define "device.html"}}<!doctype html>
+<html lang="en">
+<head>{{template "head" .}}<title>Connect your terminal · the still room</title></head>
+<body>
+{{template "topbar" .}}
+<main class="wrap">
+  <div class="card">
+    <h1>Connect your terminal</h1>
+    <p>Type the code <code>still auth login</code> printed in your terminal.</p>
+    {{if .Error}}<p class="err">{{.Error}}</p>{{end}}
+    <form method="post" action="/auth/device">
+      <input name="code" placeholder="XXXX-XXXX" autocomplete="off" autocapitalize="characters" autofocus>
+      <button type="submit">Connect</button>
+    </form>
+  </div>
+</main>
+{{template "foot" .}}
+</body>
+</html>
+{{end}}

@@ -1,0 +1,60 @@
+{{define "pack.html"}}<!doctype html>
+<html lang="en">
+<head>{{template "head" .}}<title>{{if .Record.Note}}{{.Record.Note}}{{else}}Knowledge pack{{end}} · the still room</title></head>
+<body>
+{{template "topbar" .}}
+
+<main class="wrap">
+  <div class="pack-head">
+    <h1>{{if .Record.Publisher}}Knowledge from {{.Record.Publisher}}{{else}}Knowledge pack{{end}}</h1>
+    <div class="meta">
+      {{if .Record.Repo}}<span>{{.Record.Repo}}</span><span>·</span>{{end}}
+      <span>{{date .Record.CreatedAt}}</span><span>·</span>
+      <span>{{bytes .Record.Bytes}}</span>
+      <span class="chip mode-{{.Record.Mode}}">{{.Record.Mode}}</span>
+    </div>
+    {{if .Record.Note}}<p class="note">{{.Record.Note}}</p>{{end}}
+  </div>
+
+  <div class="command">
+    <div class="command-head">
+      paste this into Claude Code or Codex
+      <button class="copy" type="button" data-copy="{{.PullCmd}}">Copy</button>
+    </div>
+    <pre>{{.PullCmd}}</pre>
+  </div>
+
+  {{if .Pack.Facts}}
+  <p class="section-title">{{len .Pack.Facts}} facts</p>
+  <ul class="items">
+    {{range .Pack.Facts}}<li><span class="id">{{.ID}}</span><p>{{.Body}}</p></li>{{end}}
+  </ul>
+  {{end}}
+
+  {{if .Pack.Playbooks}}
+  <p class="section-title">{{len .Pack.Playbooks}} playbooks</p>
+  <ul class="items">
+    {{range .Pack.Playbooks}}<li><span class="id">{{.ID}}</span><p>{{.Title}}</p></li>{{end}}
+  </ul>
+  {{end}}
+
+  {{if .Pack.Sessions}}
+  <p class="section-title">{{len .Pack.Sessions}} session transcripts</p>
+  <ul class="items">
+    {{range .Pack.Sessions}}<li><span class="id">{{.Ref}}</span><p>{{.Turns}} turns · {{bytes (len .Text)}}{{if .Redactions}} · {{.Redactions}} secret-shaped strings scrubbed{{end}}</p></li>{{end}}
+  </ul>
+  {{end}}
+
+  <div class="warn">
+    <b>Before you pull this</b>
+    This is one person's account of their own environment, not verified here. Where it
+    contradicts the code in front of you, the code wins. It lands in its own directory,
+    attributed to whoever published it, and never into your project's own facts.
+  </div>
+</main>
+
+{{template "foot" .}}
+<script src="/static/copy.js"></script>
+</body>
+</html>
+{{end}}

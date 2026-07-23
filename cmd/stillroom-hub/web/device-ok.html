@@ -1,0 +1,16 @@
+{{define "device-ok.html"}}<!doctype html>
+<html lang="en">
+<head>{{template "head" .}}<title>Connected · the still room</title></head>
+<body>
+{{template "topbar" .}}
+<main class="wrap">
+  <div class="card">
+    <h1>Connected</h1>
+    <p>Your terminal is signed in as {{if .Account}}{{.Account.Login}}{{end}}. You can close this tab —
+       anything you publish from now on will be attributed to you.</p>
+  </div>
+</main>
+{{template "foot" .}}
+</body>
+</html>
+{{end}}
