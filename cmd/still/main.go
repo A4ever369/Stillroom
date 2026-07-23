@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"time"
@@ -36,7 +37,19 @@ const minTurns = 4
 
 // version is stamped at build time by GoReleaser (-X main.version=…); it stays
 // "dev" for plain `go build`/`go install` of an untagged tree.
+// version is stamped by the release build. Binaries produced by `go install`
+// get no ldflags, so fall back to the module version the toolchain embeds —
+// otherwise every bug report from an installed binary says "dev".
 var version = "dev"
+
+func init() {
+	if version != "dev" {
+		return
+	}
+	if bi, ok := debug.ReadBuildInfo(); ok && bi.Main.Version != "" && bi.Main.Version != "(devel)" {
+		version = bi.Main.Version
+	}
+}
 
 func main() {
 	if len(os.Args) < 2 {

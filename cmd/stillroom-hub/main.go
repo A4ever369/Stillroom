@@ -29,13 +29,26 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"strings"
 	"time"
 
 	"github.com/A4ever369/Stillroom/internal/pack"
 )
 
+// version is stamped by the release build. Binaries produced by `go install`
+// get no ldflags, so fall back to the module version the toolchain embeds —
+// otherwise every bug report from an installed binary says "dev".
 var version = "dev"
+
+func init() {
+	if version != "dev" {
+		return
+	}
+	if bi, ok := debug.ReadBuildInfo(); ok && bi.Main.Version != "" && bi.Main.Version != "(devel)" {
+		version = bi.Main.Version
+	}
+}
 
 //go:embed web
 var webFS embed.FS
