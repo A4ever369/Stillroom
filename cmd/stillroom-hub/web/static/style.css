@@ -99,9 +99,17 @@ code, .mono { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0;
 }
 .brand {
   display: inline-flex; align-items: center; gap: var(--s-xs);
-  color: var(--ink); font-weight: 600; letter-spacing: -0.2px; font-size: 14px;
+  color: var(--ink); font-weight: 600; letter-spacing: -0.2px; font-size: 15px;
 }
-.brand svg { color: var(--primary); }
+.mark {
+  width: 20px; height: 15px; flex: none;
+  /* Pixel art, like the hero — the old outline flask belonged to a different
+     drawing. Integer size only; 20x15 is 14x10 at a clean scale factor. */
+  shape-rendering: crispEdges;
+}
+.m-glass  { fill: var(--ink-muted); }
+.m-liquid { fill: var(--primary); }
+.m-drop   { fill: var(--primary-hover); }
 .spacer { flex: 1; }
 .topbar a.nav { color: var(--ink-subtle); font-size: 14px; }
 .topbar a.nav:hover { color: var(--ink); }

@@ -5,11 +5,11 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚗️</text></svg>">
 {{end}}
 
-{{define "mark"}}<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 2h6M10 2v5.2L4.8 17.4A2.6 2.6 0 0 0 7.1 21h9.8a2.6 2.6 0 0 0 2.3-3.6L14 7.2V2"/></svg>{{end}}
+{{define "mark"}}<svg class="mark" viewBox="0 0 14 10" shape-rendering="crispEdges" aria-hidden="true"><rect class="m-drop" x="6" y="0" width="1" height="1"/><rect class="m-glass" x="3" y="2" width="4" height="1"/><rect class="m-glass" x="3" y="3" width="1" height="1"/><rect class="m-glass" x="6" y="3" width="1" height="1"/><rect class="m-glass" x="2" y="4" width="2" height="1"/><rect class="m-glass" x="6" y="4" width="2" height="1"/><rect class="m-glass" x="1" y="5" width="1" height="1"/><rect class="m-glass" x="8" y="5" width="1" height="1"/><rect class="m-glass" x="1" y="6" width="1" height="1"/><rect class="m-liquid" x="2" y="6" width="6" height="1"/><rect class="m-glass" x="8" y="6" width="1" height="1"/><rect class="m-glass" x="1" y="7" width="1" height="1"/><rect class="m-liquid" x="2" y="7" width="6" height="1"/><rect class="m-glass" x="8" y="7" width="1" height="1"/><rect class="m-glass" x="2" y="8" width="1" height="1"/><rect class="m-liquid" x="3" y="8" width="4" height="1"/><rect class="m-glass" x="7" y="8" width="1" height="1"/><rect class="m-glass" x="3" y="9" width="4" height="1"/></svg>{{end}}
 
 {{define "topbar"}}
 <header class="topbar">
-  <a class="brand" href="/">{{template "mark"}} the still room</a>
+  <a class="brand" href="/">{{template "mark"}} Stillroom</a>
   <span class="spacer"></span>
   {{if .Account}}
     <a class="nav" href="/me">my distillations</a>
