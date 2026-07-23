@@ -30,6 +30,8 @@ into agent context via CLAUDE.md imports.
 
 Design doc: `docs/design-v2.md` (two-plane architecture, fusion semantics, roadmap).
 Product design: `docs/product-design.md` (users, surfaces, consent rules, horizons).
+**Visual system: `DESIGN.md` — any UI work (the `stillroomd` web UI, published
+artifacts, a future landing page) follows its tokens. Do not invent colours.**
 Progress ledger: `docs/progress.md` — **append an entry there when you complete
 a milestone or make a direction-level decision.**
 

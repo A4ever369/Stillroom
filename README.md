@@ -179,7 +179,8 @@ PR-comment loop are all in place and covered by an invariant-organized test
 suite (`docs/testing.md`). The design doc — layered IR, fusion semantics,
 roadmap — lives in [`docs/design-v2.md`](docs/design-v2.md), and the product
 design — users, surfaces, the consent rules and the four horizons — in
-[`docs/product-design.md`](docs/product-design.md).
+[`docs/product-design.md`](docs/product-design.md). The visual system lives in
+[`DESIGN.md`](DESIGN.md).
 
 ## License
 

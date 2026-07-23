@@ -17,6 +17,10 @@ place.
   "related" results, a `/api/search` JSON API for CI and agents, `/healthz`, and
   a distroless `Dockerfile`. It never reads session transcripts and never writes
   to a repo (`docs/self-hosting.md`, design §17).
+- **`DESIGN.md`** — Stillroom's visual system (near-black canvas, four-step surface ladder,
+  a single lavender accent, no shadows). The `stillroomd` UI is built on its tokens; any
+  future UI follows it. Adapted from Linear's published design language, with a documented
+  light theme and one state colour added.
 - `internal/index`: read-only, in-memory search over many knowledge planes, with
   CJK support via character bigrams (no segmenter, zero dependencies).
 - Codex CLI adapter: `still distill` discovers and digests
