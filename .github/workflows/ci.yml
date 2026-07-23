@@ -15,3 +15,11 @@ jobs:
       - run: go vet ./...
       - run: go test ./...
       - run: bash scripts/smoke.sh
+      # A workflow file that does not parse produces a run that fails in 0s
+      # and is invisible unless someone opens the Actions tab — one sat broken
+      # for a day. Lint them here, where a failure is in the way.
+      - name: lint workflows
+        run: |
+          curl -fsSL -o actionlint.bash https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash
+          bash actionlint.bash
+          ./actionlint -color

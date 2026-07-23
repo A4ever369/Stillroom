@@ -42,7 +42,7 @@ jobs:
           go test ${{ matrix.pkg }}
           -run '^$'
           -fuzz '^${{ matrix.fn }}$'
-          -fuzztime '${{ github.event.inputs.fuzztime || ''5m'' }}'
+          -fuzztime '${{ github.event.inputs.fuzztime || '5m' }}'
           -fuzzminimizetime 30s
       - name: upload crashers
         if: failure()
