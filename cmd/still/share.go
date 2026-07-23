@@ -47,9 +47,18 @@ func cmdPublish(args []string) error {
 		return err
 	}
 
-	s, err := mustStore()
+	// The landing page hands people one line ending in `still publish`, so this
+	// command has to be able to start from nothing. A first-time visitor pasting
+	// that line has no .team-context/ and no distilled facts; making them read
+	// two error messages and run two more commands is not "one line".
+	s, err := repoStore()
 	if err != nil {
 		return err
+	}
+	if !s.Exists() {
+		if err := s.Init(); err != nil {
+			return err
+		}
 	}
 
 	mode := pack.ModeKnowledge
@@ -83,7 +92,18 @@ func cmdPublish(args []string) error {
 		return err
 	}
 	if len(p.Facts) == 0 && len(p.Playbooks) == 0 {
-		return errors.New("nothing to share yet — run `still distill` first")
+		// Nothing distilled yet. Offer to do it rather than sending the person
+		// away to another command — but never silently, because distillation
+		// spends the user's own model tokens.
+		if err := distillForPublish(s, *yes); err != nil {
+			return err
+		}
+		if p, err = pack.Build(s, digests, mode, *note, originOf(s)); err != nil {
+			return err
+		}
+		if len(p.Facts) == 0 && len(p.Playbooks) == 0 {
+			return errors.New("nothing was distilled from this repo's sessions — there may be nothing here worth sharing yet")
+		}
 	}
 
 	printPackSummary(p)
@@ -169,6 +189,34 @@ func cmdRevoke(args []string) error {
 	fmt.Println("Anyone who already pulled it still has their copy.")
 	return nil
 }
+
+// distillForPublish runs a distillation pass so that `still publish` works from
+// a cold start. It asks first: this is the one step that costs the user money.
+func distillForPublish(s ir.Store, assumeYes bool) error {
+	paths, err := pendingSessions(s, false)
+	if err != nil {
+		return err
+	}
+	if len(paths) == 0 {
+		return errors.New("no sessions found for this repo yet — work with your agent here first, then run `still publish`")
+	}
+	if len(paths) > publishDistillLimit {
+		paths = paths[:publishDistillLimit]
+	}
+
+	fmt.Printf("Nothing has been distilled from this repo yet.\n\n")
+	fmt.Printf("  %d recent session(s) can be distilled now. Each one is a `claude -p` call\n", len(paths))
+	fmt.Printf("  that runs on this machine and spends your own model quota.\n")
+	if !assumeYes && !confirm("Distill them?") {
+		return errors.New("nothing distilled, so there is nothing to share")
+	}
+	fmt.Println()
+	return cmdDistill([]string{"--limit", fmt.Sprint(len(paths))})
+}
+
+// publishDistillLimit caps the cold-start pass. Someone who just wants a link
+// should not accidentally trigger a distillation of months of history.
+const publishDistillLimit = 3
 
 // printPackSummary is the consent moment. Publishing puts this content on
 // someone else's machine, so what is about to leave is shown in full — counts,
