@@ -133,7 +133,11 @@ func cmdPublish(args []string) error {
 	// out of terminal scrollback. It is the only way most people can take a
 	// link back, and it is issued exactly once.
 	if token != "" {
-		if err := rememberPublished(link, token); err != nil {
+		rec := publishedPack{
+			Token: token, Note: p.Note, Repo: p.Origin.Repo,
+			Mode: string(p.Mode), Facts: len(p.Facts), At: time.Now().UTC(),
+		}
+		if err := rememberPublished(link, rec); err != nil {
 			fmt.Printf("\n  (could not save the revoke token: %v)\n", err)
 			fmt.Printf("  keep it somewhere safe: %s\n", token)
 		}
@@ -142,7 +146,8 @@ func cmdPublish(args []string) error {
 	fmt.Printf("\n  %s\n\n", link)
 	fmt.Println("Send that to anyone. They paste this into their own Claude Code or Codex:")
 	fmt.Printf("\n  still pull %s\n\n", link)
-	fmt.Printf("Changed your mind later:  still revoke %s\n", link)
+	fmt.Printf("Everything you have shared:  still published\n")
+	fmt.Printf("Take this one back:          still revoke %s\n", link)
 	return nil
 }
 

@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 )
@@ -268,8 +269,21 @@ func openBrowser(url string) {
 // returned exactly once, which makes "write it down yourself" a bad design:
 // the CLI keeps it, next to the credentials, readable only by its owner.
 
+// published records what this machine has shared. Sharing works without an
+// account, so this file is the only place a person can see their own history —
+// and the revoke token, issued exactly once, is the only thing that can take a
+// link back.
 type published struct {
-	Links map[string]string `json:"links"` // link → revoke token
+	Links map[string]publishedPack `json:"links"`
+}
+
+type publishedPack struct {
+	Token string    `json:"token"`
+	Note  string    `json:"note,omitempty"`
+	Repo  string    `json:"repo,omitempty"`
+	Mode  string    `json:"mode,omitempty"`
+	Facts int       `json:"facts,omitempty"`
+	At    time.Time `json:"at"`
 }
 
 func publishedPath() (string, error) {
@@ -281,19 +295,32 @@ func publishedPath() (string, error) {
 }
 
 func loadPublished() published {
-	p := published{Links: map[string]string{}}
+	empty := published{Links: map[string]publishedPack{}}
 	path, err := publishedPath()
 	if err != nil {
-		return p
+		return empty
 	}
 	raw, err := os.ReadFile(path)
 	if err != nil {
+		return empty
+	}
+	var p published
+	if err := json.Unmarshal(raw, &p); err == nil && p.Links != nil {
 		return p
 	}
-	if err := json.Unmarshal(raw, &p); err != nil || p.Links == nil {
-		return published{Links: map[string]string{}}
+	// The first version of this file stored a bare token per link. Read it
+	// rather than dropping someone's only means of revoking what they shared.
+	var old struct {
+		Links map[string]string `json:"links"`
 	}
-	return p
+	if err := json.Unmarshal(raw, &old); err == nil && old.Links != nil {
+		out := published{Links: map[string]publishedPack{}}
+		for link, tok := range old.Links {
+			out.Links[link] = publishedPack{Token: tok}
+		}
+		return out
+	}
+	return empty
 }
 
 func savePublished(p published) error {
@@ -315,13 +342,69 @@ func savePublished(p published) error {
 	return os.Rename(tmp, path)
 }
 
-func rememberPublished(link, token string) error {
+func rememberPublished(link string, rec publishedPack) error {
 	p := loadPublished()
-	p.Links[strings.TrimRight(link, "/")] = token
+	p.Links[strings.TrimRight(link, "/")] = rec
 	return savePublished(p)
 }
 
-func publishedToken(link string) string { return loadPublished().Links[strings.TrimRight(link, "/")] }
+func publishedToken(link string) string {
+	return loadPublished().Links[strings.TrimRight(link, "/")].Token
+}
+
+// cmdPublished lists what this machine has shared. It exists because sharing
+// deliberately needs no account: without it, a person who published three
+// links has no way to see them again, and no way to take one back.
+func cmdPublished(args []string) error {
+	recs := loadPublished().Links
+	if len(recs) == 0 {
+		fmt.Println("nothing published from this machine yet.")
+		fmt.Println("run `still publish` in a repo you have worked in.")
+		return nil
+	}
+	type row struct {
+		link string
+		publishedPack
+	}
+	rows := make([]row, 0, len(recs))
+	for link, rec := range recs {
+		rows = append(rows, row{link, rec})
+	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].At.After(rows[j].At) })
+
+	fmt.Printf("%d link(s) shared from this machine:\n\n", len(rows))
+	for _, r := range rows {
+		what := r.Note
+		if what == "" {
+			what = "(no note)"
+		}
+		when := ""
+		if !r.At.IsZero() {
+			when = r.At.Local().Format("2006-01-02")
+		}
+		fmt.Printf("  %s\n", r.link)
+		fmt.Printf("      %s\n", clipLine(what, 68))
+		meta := []string{}
+		if r.Repo != "" {
+			meta = append(meta, r.Repo)
+		}
+		if r.Facts > 0 {
+			meta = append(meta, fmt.Sprintf("%d facts", r.Facts))
+		}
+		if r.Mode != "" {
+			meta = append(meta, r.Mode)
+		}
+		if when != "" {
+			meta = append(meta, when)
+		}
+		if len(meta) > 0 {
+			fmt.Printf("      %s\n", strings.Join(meta, " · "))
+		}
+		fmt.Println()
+	}
+	fmt.Println("take one back with:  still revoke <link>")
+	return nil
+}
 
 func forgetPublished(link string) {
 	p := loadPublished()

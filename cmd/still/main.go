@@ -74,6 +74,8 @@ func main() {
 		err = cmdAuth(os.Args[2:])
 	case "revoke":
 		err = cmdRevoke(os.Args[2:])
+	case "published":
+		err = cmdPublished(os.Args[2:])
 	case "status":
 		err = cmdStatus(os.Args[2:])
 	case "doctor":
@@ -109,6 +111,7 @@ Usage:
   still review --base DIR            print a knowledge diff vs another checkout (for PR bots)
   still publish                     share this knowledge as a link (--full to include sessions)
   still pull <link|file>            receive someone else's knowledge pack
+  still published                   list every link you have shared from here
   still revoke <link>               take a published link back
   still auth login | status | logout  sign in so your packs carry your name
   still status [--json]             knowledge base, queue and discovery overview
