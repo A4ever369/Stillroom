@@ -38,6 +38,16 @@ place.
 - Distillation-quality eval harness (`make eval`) with a committed baseline.
 
 ### Changed
+- Near-duplicate detection now uses **idf-weighted token Jaccard plus an id
+  token-set check**, replacing rune-bigram Jaccard. Tuned against 210 facts
+  distilled from 21 real sessions: the old signal flagged 3 pairs over that
+  corpus and missed hand-verified duplicates, because character bigrams cannot
+  separate unrelated English technical prose from real duplicates. The id check
+  catches word-order variants (`a.delete-env.cascade` vs `a.env-delete.cascade`)
+  with no false positives — a shape the model produces often, since it
+  re-derives an id every session.
+- The tokenizer (words for Latin, character bigrams for CJK) moved to
+  `internal/text` so search ranking and duplicate detection cannot drift apart.
 - Go module path is `github.com/A4ever369/Stillroom` (matches the repo, so
   `go install …@latest` works).
 - `BuildPrompt` excludes session/tooling meta and local-machine environment

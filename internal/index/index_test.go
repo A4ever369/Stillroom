@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/A4ever369/Stillroom/internal/ir"
+	"github.com/A4ever369/Stillroom/internal/text"
 )
 
 var now = time.Date(2026, 7, 23, 12, 0, 0, 0, time.UTC)
@@ -216,7 +217,7 @@ func TestSnippetKeepsRuneBoundaries(t *testing.T) {
 	for _, term := range []string{"", "数据库"} {
 		var terms []string
 		if term != "" {
-			terms = tokenize(term)
+			terms = text.Tokens(term)
 		}
 		s := snippet(body, terms)
 		if !isValidUTF8(s) {

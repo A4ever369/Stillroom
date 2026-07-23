@@ -16,9 +16,9 @@ import (
 	"sort"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/A4ever369/Stillroom/internal/ir"
+	"github.com/A4ever369/Stillroom/internal/text"
 )
 
 // Kind distinguishes the two document types in the knowledge plane.
@@ -145,7 +145,7 @@ func (ix *Index) add(d Doc) {
 	n := len(ix.docs)
 	ix.docs = append(ix.docs, d)
 	seen := map[string]bool{}
-	for _, tok := range tokenize(d.ID + " " + d.Title + " " + d.Body + " " + d.Scope) {
+	for _, tok := range text.Tokens(d.ID + " " + d.Title + " " + d.Body + " " + d.Scope) {
 		if seen[tok] {
 			continue
 		}
@@ -230,7 +230,7 @@ func (ix *Index) Search(q string, f Filter) []Hit {
 	if f.Now.IsZero() {
 		f.Now = ix.BuiltAt
 	}
-	terms := tokenize(q)
+	terms := text.Tokens(q)
 	if len(terms) == 0 {
 		var hits []Hit
 		for _, d := range ix.docs {
@@ -274,9 +274,9 @@ func (ix *Index) Search(q string, f Filter) []Hit {
 }
 
 func score(d Doc, terms []string) int {
-	idTok := set(tokenize(d.ID))
-	titleTok := set(tokenize(d.Title))
-	scopeTok := set(tokenize(d.Scope))
+	idTok := set(text.Tokens(d.ID))
+	titleTok := set(text.Tokens(d.Title))
+	scopeTok := set(text.Tokens(d.Scope))
 	body := strings.ToLower(d.Body)
 
 	s := 0
@@ -359,54 +359,6 @@ func runeStart(s string, i int) int {
 		i--
 	}
 	return i
-}
-
-// tokenize lowercases and splits on non-alphanumeric runs. CJK has no spaces,
-// so CJK runs additionally emit character bigrams — enough to make Chinese
-// knowledge searchable without pulling in a segmenter (zero-dependency rule).
-func tokenize(s string) []string {
-	var out []string
-	var cur []rune
-	var cjk []rune
-
-	flushWord := func() {
-		if len(cur) > 0 {
-			out = append(out, string(cur))
-			cur = cur[:0]
-		}
-	}
-	flushCJK := func() {
-		for i, r := range cjk {
-			out = append(out, string(r))
-			if i+1 < len(cjk) {
-				out = append(out, string(cjk[i:i+2]))
-			}
-		}
-		cjk = cjk[:0]
-	}
-
-	for _, r := range strings.ToLower(s) {
-		switch {
-		case isCJK(r):
-			flushWord()
-			cjk = append(cjk, r)
-		case unicode.IsLetter(r) || unicode.IsDigit(r):
-			flushCJK()
-			cur = append(cur, r)
-		default:
-			flushWord()
-			flushCJK()
-		}
-	}
-	flushWord()
-	flushCJK()
-	return out
-}
-
-func isCJK(r rune) bool {
-	return (r >= 0x4E00 && r <= 0x9FFF) || // CJK unified ideographs
-		(r >= 0x3400 && r <= 0x4DBF) || // extension A
-		(r >= 0x3040 && r <= 0x30FF) // kana
 }
 
 func dedupe(in []string) []string {
