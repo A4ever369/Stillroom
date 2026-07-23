@@ -90,7 +90,7 @@ code, .mono { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0;
 .topbar a.nav:hover { color: var(--ink); }
 .avatar { width: 22px; height: 22px; border-radius: var(--r-pill); }
 
-.wrap { max-width: 760px; margin: 0 auto; padding: var(--s-xxl) var(--s-lg) 96px; }
+.wrap { max-width: 720px; margin: 0 auto; padding: var(--s-md) var(--s-lg) 96px; }
 .wrap.wide { max-width: 980px; }
 
 .foot {
@@ -100,59 +100,66 @@ code, .mono { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0;
 }
 
 /* ---------- the still ---------- */
+/* Pixel art, so everything is on the grid: whole-pixel rects, crisp edges, and
+   motion in discrete steps rather than smooth interpolation. A drop that eases
+   between pixels would just look like a blurry dot. */
 
-.hero { text-align: center; padding-top: var(--s-xl); }
-.still-figure { display: flex; justify-content: center; margin-bottom: var(--s-xl); }
-.still { width: 210px; height: 276px; }
-
-.glass { fill: none; stroke: var(--hairline-strong); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
-.liquid { fill: var(--primary); opacity: .55; }
-.liquid-dark { fill: var(--primary); opacity: .3; }
-
-/* vapour rising off the heated flask */
-.vapour { fill: var(--primary); opacity: 0; }
-.vapour.v1 { animation: rise 4.2s ease-in-out infinite; }
-.vapour.v2 { animation: rise 4.2s ease-in-out .9s infinite; }
-.vapour.v3 { animation: rise 4.2s ease-in-out 2.1s infinite; }
-@keyframes rise {
-  0%   { opacity: 0;  transform: translateY(0) scale(.5); }
-  30%  { opacity: .45; }
-  100% { opacity: 0;  transform: translateY(-46px) scale(1.4); }
+.hero { text-align: center; padding-top: var(--s-xs); }
+.still-figure { display: flex; justify-content: center; margin-bottom: var(--s-md); }
+.still {
+  width: 120px; height: 107px;
+  image-rendering: pixelated;
 }
 
-/* one drop, condensed and falling, over and over */
-.drop { fill: var(--primary); animation: fall 3.4s cubic-bezier(.45,0,.75,.35) infinite; }
-@keyframes fall {
-  0%, 20%  { transform: translateY(0);    opacity: 0; }
-  28%      { transform: translateY(0);    opacity: 1; }
-  86%      { transform: translateY(56px); opacity: 1; }
-  90%,100% { transform: translateY(56px); opacity: 0; }
+.px   { fill: var(--hairline-strong); }
+.liq  { fill: var(--primary); opacity: .55; }
+.liq2 { fill: var(--primary); opacity: .3; }
+
+/* vapour: pixels blinking their way up the neck */
+.vap { fill: var(--primary); opacity: 0; }
+.vap.v1 { animation: vap 3.2s steps(4) infinite; }
+.vap.v2 { animation: vap 3.2s steps(4) .8s infinite; }
+.vap.v3 { animation: vap 3.2s steps(4) 1.7s infinite; }
+@keyframes vap {
+  0%   { opacity: .6; transform: translateY(0); }
+  60%  { opacity: .35; transform: translateY(-4px); }
+  100% { opacity: 0; transform: translateY(-7px); }
 }
 
-/* the collected essence, catching each drop */
-.ripple { transform-origin: 127px 208px; fill: none; stroke: var(--primary); stroke-width: 1.2; opacity: 0; animation: ripple 3.4s ease-out infinite; }
-@keyframes ripple {
-  0%, 85% { opacity: 0; transform: scaleX(.3); }
-  91%     { opacity: .8; transform: scaleX(1); }
-  100%    { opacity: 0; transform: scaleX(1.6); }
+/* the drop: six discrete pixel positions, then it lands */
+.drop { fill: var(--primary); animation: drop 2.8s steps(6) infinite; }
+@keyframes drop {
+  0%, 8%   { opacity: 0; transform: translateY(0); }
+  12%      { opacity: 1; transform: translateY(0); }
+  86%      { opacity: 1; transform: translateY(6px); }
+  90%,100% { opacity: 0; transform: translateY(6px); }
+}
+
+/* the splash the drop makes when it lands */
+.splash { fill: var(--primary); opacity: 0; animation: splash 2.8s steps(2) infinite; }
+@keyframes splash {
+  0%, 84% { opacity: 0; }
+  88%     { opacity: .8; }
+  100%    { opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vapour, .drop, .ripple { animation: none; }
+  .vap, .drop, .splash { animation: none; }
   .drop { opacity: 1; }
 }
 
 /* ---------- hero copy ---------- */
 
 .hero h1 {
-  font-size: clamp(32px, 5.5vw, 52px); font-weight: 600;
+  font-size: clamp(30px, 4.4vw, 44px); font-weight: 600;
   line-height: 1.08; letter-spacing: -0.035em;
-  margin: 0 0 var(--s-md); text-wrap: balance;
+  margin: 0 0 var(--s-sm); text-wrap: balance; max-width: 18ch;
+  margin-left: auto; margin-right: auto;
 }
 .hero h1 em { font-style: normal; color: var(--primary); }
 .hero p.lede {
-  font-size: 18px; color: var(--ink-subtle); max-width: 46ch;
-  margin: 0 auto var(--s-xl); letter-spacing: -0.1px;
+  font-size: 17px; color: var(--ink-subtle); max-width: 58ch;
+  margin: 0 auto var(--s-md); letter-spacing: -0.1px;
 }
 
 /* ---------- the command ---------- */
@@ -170,7 +177,7 @@ code, .mono { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0;
 }
 .command pre {
   margin: 0; padding: var(--s-md);
-  font-family: var(--font-mono); font-size: 13px; line-height: 1.7;
+  font-family: var(--font-mono); font-size: 12.5px; line-height: 1.55;
   color: var(--ink-muted); white-space: pre-wrap; word-break: break-word;
 }
 button.copy {
@@ -183,7 +190,7 @@ button.copy:hover { background: var(--primary-hover); }
 button.copy.done { background: var(--surface-3); color: var(--success); }
 
 .steps {
-  display: grid; gap: var(--s-md); margin-top: var(--s-xxl);
+  display: grid; gap: var(--s-sm); margin-top: var(--s-xl);
   text-align: left;
 }
 .step { display: grid; grid-template-columns: 24px 1fr; gap: var(--s-md); align-items: baseline; }
