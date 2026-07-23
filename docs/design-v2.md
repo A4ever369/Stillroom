@@ -3,6 +3,8 @@
 > Supersession: this document is the third after `session-ir-research-brief.md` (the research brief) and `architecture.md` (the v1 blueprint), and it **converges on an implementable design**. See §9 for how it differs from the first two.
 >
 > In one sentence: evidence is not fusible, knowledge is fusible — cut the system along that line into two planes, carry the knowledge plane directly on a real git repo so that the fusible unit coincides with git's fusible unit, and get merge / review / permissions / history all for free.
+>
+> **Companion document:** this one is the *architecture*. [`product-design.md`](product-design.md) is the *product* — users and jobs, the object model, the five surfaces, the consent constitution, activation, metrics, and the four horizons. Where the two overlap (positioning §11, the roadmap §8, the server plane §17), this document holds the reasoning and the product doc holds the user-facing consequences.
 
 ---
 

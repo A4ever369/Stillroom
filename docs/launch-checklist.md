@@ -33,11 +33,13 @@ key-laden sessions and no visible leaks. What remains is mostly mechanical.
       Codex-only user still needs Claude Code. Documented plainly in the README
       for now (2026-07-22); a native `CodexRunner` (headless `codex exec`)
       remains a roadmap follow-up.
-- [ ] **Document the redaction boundary honestly.** Redaction is conservative,
-      regex-based, and scrubs credential *shapes*, not confidential *content*.
-      The knowledge base is committed and shared, so the PR review is the real
-      checkpoint. Say so in the README and the PR-comment template — do not let
-      users over-trust it.
+- [x] **Document the redaction boundary honestly.** (2026-07-23) Redaction is
+      conservative, regex-based, and scrubs credential *shapes*, not confidential
+      *content*; the PR review is the real checkpoint. Stated as rule R4 of the
+      consent constitution in [`product-design.md`](product-design.md) §6 —
+      including the reason it matters, that over-trusting redaction is worse than
+      having none because it removes the reader's vigilance — and no surface may
+      imply otherwise.
 - [x] **Distillation quality validated on real, diverse projects.** (2026-07-22)
 - [x] **Secret redaction verified on real key-laden sessions.** (2026-07-22)
 

@@ -29,6 +29,7 @@ into agent context via CLAUDE.md imports.
 | `plugin/claude-code` | SessionEnd hook plugin (enqueue only — never calls a model) |
 
 Design doc: `docs/design-v2.md` (two-plane architecture, fusion semantics, roadmap).
+Product design: `docs/product-design.md` (users, surfaces, consent rules, horizons).
 Progress ledger: `docs/progress.md` — **append an entry there when you complete
 a milestone or make a direction-level decision.**
 
