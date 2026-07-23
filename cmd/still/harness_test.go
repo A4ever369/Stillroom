@@ -65,10 +65,27 @@ func newWorld(t *testing.T) *world {
 	}
 	// -b main pins the branch name so merge tests do not depend on the
 	// host's init.defaultBranch.
-	if out, err := exec.Command("git", "-C", w.repo, "init", "-q", "-b", "main").CombinedOutput(); err != nil {
+	if out, err := gitCmd("-C", w.repo, "init", "-q", "-b", "main").CombinedOutput(); err != nil {
 		t.Fatalf("git init: %v\n%s", err, out)
 	}
 	return w
+}
+
+// gitCmd builds a git command with background maintenance switched off.
+//
+// git forks `gc --auto` after commands like commit. That background process
+// keeps writing into .git/objects after the foreground command has returned,
+// so t.TempDir()'s cleanup races it and the test fails with
+// "unlinkat .../.git/objects: directory not empty" — a flake that only shows
+// up under CI's timing, which is the worst kind to leave in.
+func gitCmd(args ...string) *exec.Cmd {
+	cmd := exec.Command("git", args...)
+	cmd.Env = append(os.Environ(),
+		"GIT_CONFIG_COUNT=2",
+		"GIT_CONFIG_KEY_0=gc.auto", "GIT_CONFIG_VALUE_0=0",
+		"GIT_CONFIG_KEY_1=maintenance.auto", "GIT_CONFIG_VALUE_1=false",
+	)
+	return cmd
 }
 
 // clone produces a second working copy of this world's repo, as a teammate
@@ -78,7 +95,7 @@ func newWorld(t *testing.T) *world {
 func (w *world) clone(name string) *world {
 	w.t.Helper()
 	dst := filepath.Join(filepath.Dir(w.repo), name)
-	if out, err := exec.Command("git", "clone", "-q", w.repo, dst).CombinedOutput(); err != nil {
+	if out, err := gitCmd("clone", "-q", w.repo, dst).CombinedOutput(); err != nil {
 		w.t.Fatalf("git clone: %v\n%s", err, out)
 	}
 	return &world{t: w.t, repo: dst, claudeHome: w.claudeHome, binDir: w.binDir}
@@ -88,7 +105,7 @@ func (w *world) clone(name string) *world {
 // whether git reported a conflict.
 func (w *world) pullFrom(other *world) (string, bool) {
 	w.t.Helper()
-	out, err := exec.Command("git", "-C", w.repo,
+	out, err := gitCmd("-C", w.repo,
 		"-c", "user.email=test@stillroom.invalid",
 		"-c", "user.name=stillroom test",
 		"pull", "--no-rebase", "-q", other.repo, "main",

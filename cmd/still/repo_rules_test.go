@@ -6,7 +6,6 @@ package main
 
 import (
 	"os"
-	"os/exec"
 	"strings"
 	"testing"
 )
@@ -67,7 +66,7 @@ func (w *world) git(args ...string) string {
 		"-c", "user.email=test@stillroom.invalid",
 		"-c", "user.name=stillroom test",
 	}, args...)
-	out, err := exec.Command("git", full...).CombinedOutput()
+	out, err := gitCmd(full...).CombinedOutput()
 	if err != nil {
 		w.t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, out)
 	}
@@ -104,6 +103,6 @@ func (w *world) conflictedPaths() []string {
 // where some git invocations exit non-zero by design.
 func (w *world) gitStatusAllowingFailure() string {
 	w.t.Helper()
-	out, _ := exec.Command("git", "-C", w.repo, "status", "--porcelain").CombinedOutput()
+	out, _ := gitCmd("-C", w.repo, "status", "--porcelain").CombinedOutput()
 	return string(out)
 }
