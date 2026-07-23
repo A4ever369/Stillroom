@@ -16,9 +16,15 @@
     {{if .Record.Note}}<p class="note">{{.Record.Note}}</p>{{end}}
   </div>
 
+  <div class="sharelink">
+    <span class="sharelink-label">Send this to someone</span>
+    <code class="sharelink-url">{{.ShareURL}}</code>
+    <button class="copy" type="button" data-copy="{{.ShareURL}}">Copy link</button>
+  </div>
+
   <div class="command">
     <div class="command-head">
-      paste this into Claude Code or Codex
+      or paste this into Claude Code or Codex
       <button class="copy" type="button" data-copy="{{.PullCmd}}">Copy</button>
     </div>
     <pre>{{.PullCmd}}</pre>

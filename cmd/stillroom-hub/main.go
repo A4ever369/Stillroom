@@ -174,6 +174,7 @@ type pageData struct {
 	Pack      *pack.Pack
 	Records   []Record
 	PullCmd   string
+	ShareURL  string
 	Anonymous bool
 	Error     string
 }
@@ -222,6 +223,10 @@ func (h *hub) viewPack(w http.ResponseWriter, r *http.Request) {
 	d := h.page(r)
 	d.Record, d.Pack = &rec, &p
 	d.PullCmd = h.pullInvitation(rec, id)
+	// The bare link is what a publisher actually sends someone. It arrives in
+	// a chat window, not a terminal, so the page has to hand it over as a link
+	// and not only wrapped inside a command.
+	d.ShareURL = h.baseURL + "/k/" + id
 	render(w, "pack.html", d)
 }
 
