@@ -53,6 +53,14 @@ func main() {
 		err = cmdMaterialize(os.Args[2:])
 	case "review":
 		err = cmdReview(os.Args[2:])
+	case "publish":
+		err = cmdPublish(os.Args[2:])
+	case "pull":
+		err = cmdPull(os.Args[2:])
+	case "auth":
+		err = cmdAuth(os.Args[2:])
+	case "revoke":
+		err = cmdRevoke(os.Args[2:])
 	case "status":
 		err = cmdStatus(os.Args[2:])
 	case "doctor":
@@ -86,6 +94,10 @@ Usage:
   still materialize                 re-render materialized.md
   still materialize --check         verify materialized.md is current (exit 1 if stale)
   still review --base DIR            print a knowledge diff vs another checkout (for PR bots)
+  still publish                     share this knowledge as a link (--full to include sessions)
+  still pull <link|file>            receive someone else's knowledge pack
+  still revoke <link>               take a published link back
+  still auth login | status | logout  sign in so your packs carry your name
   still status [--json]             knowledge base, queue and discovery overview
   still doctor                      check the environment end to end
   still hook session-end            (internal) called by the Claude Code plugin
