@@ -1,0 +1,23 @@
+{{define "signin.html"}}<!doctype html>
+<html lang="en">
+<head>{{template "head" .}}<title>Sign in · Stillroom</title></head>
+<body>
+{{template "topbar" .}}
+<main class="wrap">
+  <div class="card">
+    <h1>Sign in</h1>
+    <p>Signing in puts your name on what you publish, and keeps a list of it you
+       can reach from anywhere. Publishing works without it.</p>
+    <div class="providers">
+      {{range .Providers}}
+        <a class="provider" href="/auth/start?provider={{.Name}}&amp;next={{$.Next}}">Continue with {{.Label}}</a>
+      {{end}}
+    </div>
+    <p class="fineprint">We never see your password. The provider tells us your name and
+       avatar, once, and nothing else.</p>
+  </div>
+</main>
+{{template "foot" .}}
+</body>
+</html>
+{{end}}

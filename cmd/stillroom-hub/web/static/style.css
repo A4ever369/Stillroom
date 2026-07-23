@@ -357,3 +357,13 @@ button.link:hover { color: var(--attention); }
 }
 .card button[type=submit]:hover { background: var(--primary-hover); }
 .err { color: var(--attention); font-size: 14px; margin-bottom: var(--s-md); }
+
+.providers { display: grid; gap: var(--s-sm); }
+.provider {
+  display: block; padding: 11px;
+  border: 1px solid var(--hairline-strong); border-radius: var(--r-md);
+  background: var(--surface-2); color: var(--ink);
+  font-weight: 500; font-size: 15px;
+}
+.provider:hover { border-color: var(--primary); color: var(--ink); background: var(--surface-3); }
+.fineprint { margin: var(--s-lg) 0 0; font-size: 13px; color: var(--ink-tertiary); }

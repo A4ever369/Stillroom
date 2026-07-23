@@ -28,7 +28,6 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
-	"os"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -108,16 +107,20 @@ func main() {
 	if baseURL == "" {
 		baseURL = "http://localhost" + *addr
 	}
-	auth := NewAuth(os.Getenv("GITHUB_CLIENT_ID"), os.Getenv("GITHUB_CLIENT_SECRET"))
+	auth := NewAuth(githubProvider(), googleProvider())
 
 	hint := *installHint
 	if hint == "" {
 		hint = "curl -fsSL " + baseURL + "/install.sh | sh"
 	}
 	h := &hub{store: store, auth: auth, baseURL: baseURL, installHint: hint}
-	if !auth.Enabled() {
-		log.Println("sign-in is not configured (GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET)")
+	if names := auth.Providers(); len(names) == 0 {
+		log.Println("sign-in is not configured — set GITHUB_CLIENT_ID/SECRET and/or GOOGLE_CLIENT_ID/SECRET")
 		log.Println("running in anonymous mode: packs will carry no publisher, and receivers are told so")
+	} else {
+		for _, p := range names {
+			log.Printf("sign-in enabled: %s (callback %s)", p.Label, p.redirectURI(baseURL))
+		}
 	}
 	log.Printf("data in %s", *data)
 	log.Printf("listening on %s (public %s)", *addr, baseURL)
@@ -137,7 +140,7 @@ func (h *hub) routes() http.Handler {
 	mux.HandleFunc("POST /api/packs/{id}/revoke", h.revokePackAPI)
 
 	mux.HandleFunc("GET /auth/start", h.authStart)
-	mux.HandleFunc("GET /auth/callback", h.authCallback)
+	mux.HandleFunc("GET /auth/callback/{provider}", h.authCallback)
 	mux.HandleFunc("POST /auth/signout", h.authSignOut)
 	mux.HandleFunc("GET /auth/device", h.deviceApprovePage)
 	mux.HandleFunc("POST /auth/device", h.deviceApprove)
@@ -175,6 +178,8 @@ type pageData struct {
 	Records   []Record
 	PullCmd   string
 	ShareURL  string
+	Providers []Provider
+	Next      string
 	Anonymous bool
 	Error     string
 }
@@ -373,26 +378,59 @@ func (h *hub) revokePackAPI(w http.ResponseWriter, r *http.Request) {
 // ---- auth handlers ----
 
 func (h *hub) authStart(w http.ResponseWriter, r *http.Request) {
-	if !h.auth.Enabled() {
+	providers := h.auth.Providers()
+	if len(providers) == 0 {
 		http.Error(w, "sign-in is not configured on this instance", http.StatusNotImplemented)
 		return
 	}
+	// Only accept a local path to return to; an open redirect on a sign-in
+	// route is how people get walked to a lookalike site after authenticating.
 	next := r.URL.Query().Get("next")
-	http.SetCookie(w, &http.Cookie{Name: "stillroom_next", Value: next, Path: "/", MaxAge: 600, HttpOnly: true})
-	http.Redirect(w, r, h.auth.AuthorizeURL(h.baseURL, "s"), http.StatusSeeOther)
+	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") {
+		next = "/me"
+	}
+
+	if name := r.URL.Query().Get("provider"); name != "" {
+		p, ok := h.auth.Provider(name)
+		if !ok {
+			http.Error(w, "unknown sign-in provider", http.StatusBadRequest)
+			return
+		}
+		http.Redirect(w, r, p.AuthorizeURL(h.baseURL, h.auth.StartState(p.Name, next)), http.StatusSeeOther)
+		return
+	}
+	// One provider needs no choice; more than one gets a page.
+	if len(providers) == 1 {
+		p := providers[0]
+		http.Redirect(w, r, p.AuthorizeURL(h.baseURL, h.auth.StartState(p.Name, next)), http.StatusSeeOther)
+		return
+	}
+	d := h.page(r)
+	d.Providers = providers
+	d.Next = next
+	render(w, "signin.html", d)
 }
 
 func (h *hub) authCallback(w http.ResponseWriter, r *http.Request) {
-	acc, err := h.auth.Exchange(r.URL.Query().Get("code"), h.baseURL)
+	name := r.PathValue("provider")
+	p, ok := h.auth.Provider(name)
+	if !ok {
+		http.Error(w, "unknown sign-in provider", http.StatusBadRequest)
+		return
+	}
+	// A callback that cannot be tied to a sign-in this hub started is either a
+	// stale tab or someone trying to log a visitor into an account they own.
+	next, ok := h.auth.TakeState(r.URL.Query().Get("state"), name)
+	if !ok {
+		http.Error(w, "this sign-in link has expired — start again", http.StatusBadRequest)
+		return
+	}
+	acc, err := p.Exchange(r.URL.Query().Get("code"), h.baseURL)
 	if err != nil {
 		http.Error(w, "sign-in failed: "+err.Error(), http.StatusBadGateway)
 		return
 	}
 	h.auth.SignIn(w, acc)
-	next := "/me"
-	if c, err := r.Cookie("stillroom_next"); err == nil && strings.HasPrefix(c.Value, "/") {
-		next = c.Value
-	}
 	http.Redirect(w, r, next, http.StatusSeeOther)
 }
 

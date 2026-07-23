@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -19,9 +20,9 @@ func testHub(t *testing.T, signIn bool) *hub {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a := NewAuth("", "")
+	a := NewAuth()
 	if signIn {
-		a = NewAuth("id", "secret")
+		a = NewAuth(testProvider("github"))
 	}
 	return &hub{store: st, auth: a, baseURL: "https://example.test"}
 }
@@ -258,7 +259,7 @@ func TestStoreRejectsPathTraversalIDs(t *testing.T) {
 // The device flow is what lets a terminal sign in without ever handling a
 // password. Pending is the normal state, not an error.
 func TestDeviceFlow(t *testing.T) {
-	a := NewAuth("id", "secret")
+	a := NewAuth(testProvider("github"))
 	deviceCode, userCode, _ := a.StartDevice()
 
 	tok, _, err := a.PollDevice(deviceCode)
@@ -290,7 +291,7 @@ func TestDeviceFlow(t *testing.T) {
 }
 
 func TestDeviceCodesExpire(t *testing.T) {
-	a := NewAuth("id", "secret")
+	a := NewAuth(testProvider("github"))
 	deviceCode, userCode, _ := a.StartDevice()
 	a.pending[deviceCode].Expires = time.Now().Add(-time.Second)
 
@@ -309,5 +310,61 @@ func TestUnauthenticatedCannotRevokeOrListPacks(t *testing.T) {
 	}
 	if w := do(h, httptest.NewRequest(http.MethodGet, "/me", nil)); w.Code != http.StatusSeeOther {
 		t.Errorf("/me should send you to sign in, got %d", w.Code)
+	}
+}
+
+// testProvider is a configured provider that never talks to the network — the
+// flows under test are session, device and state handling, not OAuth round
+// trips.
+func testProvider(name string) Provider {
+	p := githubProvider()
+	p.Name, p.ClientID, p.ClientSecret = name, "id", "secret"
+	return p
+}
+
+// A callback that cannot be tied to a sign-in this hub started is either a
+// stale tab or someone trying to log a visitor into an account they control.
+func TestOAuthStateIsSingleUseAndProviderBound(t *testing.T) {
+	a := NewAuth(testProvider("github"), testProvider("google"))
+	state := a.StartState("github", "/me")
+
+	if _, ok := a.TakeState(state, "google"); ok {
+		t.Error("a state minted for one provider must not work for another")
+	}
+	if _, ok := a.TakeState("never-issued", "github"); ok {
+		t.Error("an unknown state must be refused")
+	}
+	next, ok := a.TakeState(state, "github")
+	if !ok || next != "/me" {
+		t.Fatalf("valid state should return its destination: %q %v", next, ok)
+	}
+	if _, ok := a.TakeState(state, "github"); ok {
+		t.Error("a state must be single use")
+	}
+}
+
+// The sign-in route must not become an open redirect.
+func TestSignInRefusesOffsiteReturnPaths(t *testing.T) {
+	h := testHub(t, true)
+	for _, next := range []string{"https://evil.test/x", "//evil.test/x"} {
+		req := httptest.NewRequest(http.MethodGet, "/auth/start?provider=github&next="+url.QueryEscape(next), nil)
+		w := do(h, req)
+		if loc := w.Header().Get("Location"); strings.Contains(loc, "evil.test") {
+			t.Errorf("next=%q leaked into the redirect: %s", next, loc)
+		}
+	}
+}
+
+// Two providers means the visitor picks; one means no pointless page.
+func TestSignInPageAppearsOnlyWithAChoice(t *testing.T) {
+	two := &hub{store: testHub(t, false).store, auth: NewAuth(testProvider("github"), testProvider("google")), baseURL: "https://example.test"}
+	w := do(two, httptest.NewRequest(http.MethodGet, "/auth/start", nil))
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "Continue with") {
+		t.Errorf("two providers should render a chooser, got %d", w.Code)
+	}
+	one := &hub{store: two.store, auth: NewAuth(testProvider("github")), baseURL: "https://example.test"}
+	w = do(one, httptest.NewRequest(http.MethodGet, "/auth/start", nil))
+	if w.Code != http.StatusSeeOther {
+		t.Errorf("one provider should redirect straight out, got %d", w.Code)
 	}
 }

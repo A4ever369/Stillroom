@@ -47,7 +47,8 @@ whatever the process binds to.
 | `-data /data` | where packs live |
 | `-base-url` | public origin; appears in every share link |
 | `-install-hint` | the install line shown on the pages; defaults to `curl -fsSL <base>/install.sh \| sh` |
-| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | enable sign-in (optional — see below) |
+| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | enable GitHub sign-in (optional) |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | enable Google sign-in (optional) |
 
 ## Sign-in is optional
 
@@ -68,12 +69,23 @@ Turn sign-in on when you want:
 - a `/me` list of what you have published, with download counts,
 - revocation from a machine other than the one that published.
 
-To enable it, register a GitHub OAuth App with the callback URL
-`https://stillroom.sh/auth/callback` and pass the client id and secret. The hub
-uses the resulting access token once to read the account's login and avatar,
-then discards it — it never stores a credential that can act on someone's
-GitHub, and it never sees or handles a password. The CLI signs in through the
+Two providers are supported, and either alone is enough — the audience splits
+cleanly, developers have GitHub and everyone has Google. Configure whichever you
+want; with both, the visitor picks.
+
+| Provider | Register at | Callback URL |
+| --- | --- | --- |
+| GitHub | github.com/settings/developers | `https://stillroom.sh/auth/callback/github` |
+| Google | console.cloud.google.com → Credentials → OAuth client ID (Web) | `https://stillroom.sh/auth/callback/google` |
+
+Put the credentials in `/etc/stillroom-hub.env` (mode 0600) and restart. The hub
+uses the provider's access token once, to read a display name and avatar, then
+discards it — it never stores a credential that can act on someone's account
+elsewhere, and it never sees or handles a password. The CLI signs in through the
 device flow (`still auth login`), so a terminal never prompts for one either.
+
+Account ids are namespaced by provider, so a GitHub id and a Google id are
+never confused for the same person.
 
 **With sign-in enabled, anonymous publishing is refused.** That is the point:
 an open upload endpoint on a public host is somebody else's free storage.

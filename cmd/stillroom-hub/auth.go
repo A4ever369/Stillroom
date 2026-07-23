@@ -3,11 +3,8 @@ package main
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -24,9 +21,12 @@ import (
 
 // Account is everything the hub knows about a person.
 type Account struct {
-	ID     string `json:"id"`     // GitHub numeric id — stable across renames
-	Login  string `json:"login"`  // display handle
-	Avatar string `json:"avatar"` // for the website
+	// ID is namespaced by provider ("github:123"), because two providers'
+	// numeric ids are different people who would otherwise collide.
+	ID       string `json:"id"`
+	Login    string `json:"login"`  // display handle or name
+	Avatar   string `json:"avatar"` // for the website
+	Provider string `json:"provider"`
 }
 
 // Auth holds OAuth configuration plus the two short-lived in-memory tables:
@@ -34,12 +34,21 @@ type Account struct {
 // design — losing them on restart signs people out, which is an acceptable
 // cost for not persisting anything sensitive.
 type Auth struct {
-	ClientID     string
-	ClientSecret string
-	mu           sync.Mutex
-	sessions     map[string]Account // cookie value → account
-	tokens       map[string]Account // CLI bearer token → account
-	pending      map[string]*deviceReq
+	providers []Provider
+	mu        sync.Mutex
+	sessions  map[string]Account // cookie value → account
+	tokens    map[string]Account // CLI bearer token → account
+	pending   map[string]*deviceReq
+	// states holds in-flight CSRF states. An OAuth callback that cannot be
+	// tied back to a sign-in this hub started is an attacker logging someone
+	// into an account they control, so it is checked rather than assumed.
+	states map[string]stateEntry
+}
+
+type stateEntry struct {
+	provider string
+	next     string
+	expires  time.Time
 }
 
 type deviceReq struct {
@@ -49,19 +58,48 @@ type deviceReq struct {
 	Token    string
 }
 
-func NewAuth(clientID, clientSecret string) *Auth {
+func NewAuth(providers ...Provider) *Auth {
 	return &Auth{
-		ClientID: clientID, ClientSecret: clientSecret,
-		sessions: map[string]Account{},
-		tokens:   map[string]Account{},
-		pending:  map[string]*deviceReq{},
+		providers: providers,
+		sessions:  map[string]Account{},
+		tokens:    map[string]Account{},
+		pending:   map[string]*deviceReq{},
+		states:    map[string]stateEntry{},
 	}
 }
 
-// Enabled reports whether sign-in is configured. Without credentials the hub
-// runs in anonymous mode, which is fine for a local demo and stated plainly on
-// the page — but packs then carry no publisher, and the receiver is told so.
-func (a *Auth) Enabled() bool { return a.ClientID != "" && a.ClientSecret != "" }
+// StartState mints a one-time CSRF state bound to the provider and the page to
+// return to.
+func (a *Auth) StartState(provider, next string) string {
+	state := newSecret()
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	for s, e := range a.states { // opportunistic sweep; sign-ins are rare
+		if time.Now().After(e.expires) {
+			delete(a.states, s)
+		}
+	}
+	a.states[state] = stateEntry{provider: provider, next: next, expires: time.Now().Add(10 * time.Minute)}
+	return state
+}
+
+// TakeState consumes a state, returning the page to return to. Single use: a
+// replayed callback must not sign anyone in twice.
+func (a *Auth) TakeState(state, provider string) (next string, ok bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	e, found := a.states[state]
+	if !found || e.provider != provider || time.Now().After(e.expires) {
+		return "", false
+	}
+	delete(a.states, state)
+	return e.next, true
+}
+
+// Enabled reports whether any provider is configured. Without one the hub runs
+// in anonymous mode, which is fine for a local demo and stated plainly on the
+// page — but packs then carry no publisher, and the receiver is told so.
+func (a *Auth) Enabled() bool { return len(a.Providers()) > 0 }
 
 func newSecret() string {
 	b := make([]byte, 24)
@@ -188,67 +226,4 @@ func (a *Auth) PollDevice(deviceCode string) (token string, acc Account, err err
 	token, acc = req.Token, *req.Account
 	delete(a.pending, deviceCode)
 	return token, acc, nil
-}
-
-// ---- GitHub OAuth ----
-
-func (a *Auth) AuthorizeURL(base, state string) string {
-	v := url.Values{}
-	v.Set("client_id", a.ClientID)
-	v.Set("redirect_uri", base+"/auth/callback")
-	v.Set("scope", "read:user")
-	v.Set("state", state)
-	return "https://github.com/login/oauth/authorize?" + v.Encode()
-}
-
-// Exchange swaps the callback code for an account. The access token is used
-// once to read the profile and then dropped — the hub has no reason to keep a
-// credential that can act on someone's GitHub.
-func (a *Auth) Exchange(code, base string) (Account, error) {
-	form := url.Values{
-		"client_id":     {a.ClientID},
-		"client_secret": {a.ClientSecret},
-		"code":          {code},
-		"redirect_uri":  {base + "/auth/callback"},
-	}
-	req, _ := http.NewRequest(http.MethodPost, "https://github.com/login/oauth/access_token",
-		strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Accept", "application/json")
-	resp, err := (&http.Client{Timeout: 20 * time.Second}).Do(req)
-	if err != nil {
-		return Account{}, err
-	}
-	defer resp.Body.Close()
-	var tok struct {
-		AccessToken string `json:"access_token"`
-		Error       string `json:"error_description"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&tok); err != nil {
-		return Account{}, err
-	}
-	if tok.AccessToken == "" {
-		return Account{}, fmt.Errorf("github declined the sign-in: %s", tok.Error)
-	}
-
-	ureq, _ := http.NewRequest(http.MethodGet, "https://api.github.com/user", nil)
-	ureq.Header.Set("Authorization", "Bearer "+tok.AccessToken)
-	ureq.Header.Set("Accept", "application/vnd.github+json")
-	uresp, err := (&http.Client{Timeout: 20 * time.Second}).Do(ureq)
-	if err != nil {
-		return Account{}, err
-	}
-	defer uresp.Body.Close()
-	var u struct {
-		ID     int64  `json:"id"`
-		Login  string `json:"login"`
-		Avatar string `json:"avatar_url"`
-	}
-	if err := json.NewDecoder(uresp.Body).Decode(&u); err != nil {
-		return Account{}, err
-	}
-	if u.Login == "" {
-		return Account{}, errors.New("github returned no account")
-	}
-	return Account{ID: fmt.Sprint(u.ID), Login: u.Login, Avatar: u.Avatar}, nil
 }
