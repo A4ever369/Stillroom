@@ -99,53 +99,85 @@ code, .mono { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0;
   color: var(--ink-tertiary); font-size: 12px;
 }
 
-/* ---------- the still ---------- */
-/* Pixel art, so everything is on the grid: whole-pixel rects, crisp edges, and
-   motion in discrete steps rather than smooth interpolation. A drop that eases
-   between pixels would just look like a blurry dot. */
+/* ---------- the knowledge still ---------- */
+/* The figure is the thesis: a noisy session goes in, one durable fragment
+   survives the condenser, and it lands as an attributed card — not another
+   flask. Lavender is not "liquid" here; it marks the one thing being kept.
+   Pixel art, so everything is on the integer grid and motion is steps() only:
+   a fragment easing between pixels is just a blurry dot. */
 
 .hero { text-align: center; padding-top: var(--s-xs); }
 .still-figure { display: flex; justify-content: center; margin-bottom: var(--s-md); }
+
 .still {
-  width: 120px; height: 107px;
+  display: block;
+  width: clamp(132px, 19vw, 168px);
+  height: auto;
+  aspect-ratio: 4 / 3;
   image-rendering: pixelated;
+
+  /* Semantic aliases, so every part stays theme-aware through the tokens. */
+  --still-outline: var(--hairline-strong);
+  --still-raw: var(--ink-tertiary);
+  --still-card: var(--surface-1);
+  --still-copy: var(--ink-subtle);
+  --still-signal: var(--primary);
 }
 
-.px   { fill: var(--hairline-strong); }
-.liq  { fill: var(--primary); opacity: .55; }
-.liq2 { fill: var(--primary); opacity: .3; }
+.still__outline   { fill: var(--still-outline); }
+.still__card-fill { fill: var(--still-card); }
+.still__raw       { fill: var(--still-raw); opacity: .58; }
+.still__heat      { fill: var(--still-raw); opacity: .42; }
+.still__fact-line { fill: var(--still-copy); opacity: .72; }
 
-/* vapour: pixels blinking their way up the neck */
-.vap { fill: var(--primary); opacity: 0; }
-.vap.v1 { animation: vap 3.2s steps(4) infinite; }
-.vap.v2 { animation: vap 3.2s steps(4) .8s infinite; }
-.vap.v3 { animation: vap 3.2s steps(4) 1.7s infinite; }
-@keyframes vap {
-  0%   { opacity: .6; transform: translateY(0); }
-  60%  { opacity: .35; transform: translateY(-4px); }
-  100% { opacity: 0; transform: translateY(-7px); }
+.still__chosen,
+.still__essence,
+.still__fact-dot { fill: var(--still-signal); }
+
+.still__chosen   { opacity: .22; animation: still-select 5.2s steps(1, end) infinite; }
+.still__essence  { opacity: 0;   animation: still-travel 5.2s steps(1, end) infinite; }
+.still__fact-dot { opacity: .38; animation: still-arrive 5.2s steps(1, end) infinite; }
+
+/* Each pixel already sits at its grid position; the animation only reveals
+   them in sequence, so there is nothing to interpolate. */
+.still__essence.e0  { animation-delay: 0s; }
+.still__essence.e1  { animation-delay: .28s; }
+.still__essence.e2  { animation-delay: .56s; }
+.still__essence.e3  { animation-delay: .84s; }
+.still__essence.e4  { animation-delay: 1.12s; }
+.still__essence.e5  { animation-delay: 1.40s; }
+.still__essence.e6  { animation-delay: 1.68s; }
+.still__essence.e7  { animation-delay: 1.96s; }
+.still__essence.e8  { animation-delay: 2.24s; }
+.still__essence.e9  { animation-delay: 2.52s; }
+.still__essence.e10 { animation-delay: 2.80s; }
+.still__essence.e11 { animation-delay: 3.08s; }
+.still__essence.e12 { animation-delay: 3.36s; }
+
+@keyframes still-select {
+  0%, 15%       { opacity: .95; }
+  15.01%, 100%  { opacity: .22; }
 }
-
-/* the drop: six discrete pixel positions, then it lands */
-.drop { fill: var(--primary); animation: drop 2.8s steps(6) infinite; }
-@keyframes drop {
-  0%, 8%   { opacity: 0; transform: translateY(0); }
-  12%      { opacity: 1; transform: translateY(0); }
-  86%      { opacity: 1; transform: translateY(6px); }
-  90%,100% { opacity: 0; transform: translateY(6px); }
+@keyframes still-travel {
+  0%, 5.8%      { opacity: .95; }
+  5.81%, 100%   { opacity: 0; }
 }
-
-/* the splash the drop makes when it lands */
-.splash { fill: var(--primary); opacity: 0; animation: splash 2.8s steps(2) infinite; }
-@keyframes splash {
-  0%, 84% { opacity: 0; }
-  88%     { opacity: .8; }
-  100%    { opacity: 0; }
+@keyframes still-arrive {
+  0%, 68%       { opacity: .38; }
+  68.01%, 88%   { opacity: 1; }
+  88.01%, 100%  { opacity: .38; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vap, .drop, .splash { animation: none; }
-  .drop { opacity: 1; }
+  .still__chosen, .still__essence, .still__fact-dot { animation: none; }
+  .still__chosen, .still__fact-dot { opacity: .9; }
+  .still__essence { opacity: 0; }
+  /* Leave a static dotted route so the transformation stays legible. */
+  .still__essence.e4,
+  .still__essence.e6,
+  .still__essence.e8,
+  .still__essence.e10,
+  .still__essence.e12 { opacity: .34; }
 }
 
 /* ---------- hero copy ---------- */
