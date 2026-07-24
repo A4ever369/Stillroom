@@ -5,6 +5,7 @@
 {{template "topbar" .}}
 
 <main class="wrap wide">
+  <div class="me">
   <div class="page-head">
     <h1>Your distillations</h1>
     <p>Everything you have published from any machine. A link stops resolving the
@@ -13,9 +14,11 @@
 
   {{if not .Records}}
   <div class="blank">
-    <div class="blank-mark">{{template "mark"}}</div>
-    <h2>Nothing shared yet</h2>
-    <p>Finish a session with your agent, then paste this into it.</p>
+    <div class="blank-head">
+      <span class="blank-mark">{{template "mark"}}</span>
+      <h2>Nothing shared yet</h2>
+    </div>
+    <p>Finish a session with your agent, then paste this into it — it distils what you did and gives you a link.</p>
     <div class="command">
       <div class="command-head">
         paste this into Claude Code or Codex
@@ -53,6 +56,7 @@
     {{end}}
   </ul>
   {{end}}
+  </div>
 </main>
 
 {{template "foot" .}}
