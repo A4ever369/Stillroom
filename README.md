@@ -1,22 +1,85 @@
-# Stillroom
+<p align="center">
+  <a href="https://stillroom.sh"><img src="docs/img/banner.png" alt="Stillroom — hand someone what you and your AI worked out" width="820"></a>
+</p>
 
-[![CI](https://github.com/A4ever369/Stillroom/actions/workflows/ci.yml/badge.svg)](https://github.com/A4ever369/Stillroom/actions/workflows/ci.yml)
-[![Go](https://img.shields.io/badge/Go-1.24-00ADD8?logo=go)](go.mod)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+<h1 align="center">Stillroom</h1>
 
-**Distill your team's AI coding sessions into a shared, git-native knowledge base.**
+<p align="center">
+  <b>Hand someone what you and your AI worked out.</b><br>
+  A coding session becomes one link. They paste it into their own agent and pick up where you left off.
+</p>
 
-A *stillroom* was the room in a great house where remedies and essences were
-distilled — and the **still room book** was the household's knowledge base:
-recipes and hard-won know-how, maintained and handed down across generations,
-each keeper adding what they had verified themselves.
+<p align="center">
+  <a href="https://stillroom.sh"><b>stillroom.sh</b></a> ·
+  <a href="#quickstart">Quickstart</a> ·
+  <a href="docs/product-design.md">Product design</a> ·
+  <a href="docs/design-v2.md">Architecture</a>
+</p>
 
-This is that, for the AI era. Your team works with Claude Code, Codex and
-Cursor every day. Everything learned in those sessions — the infrastructure
-quirks, the decisions, the pitfalls hit and resolved — evaporates when the
-session ends. Stillroom captures it, distills it into reviewable **facts** and
-**playbooks**, and puts them where every teammate's agent reads them
-automatically. Knowledge follows the team, not the tool.
+<p align="center">
+  <a href="https://github.com/A4ever369/Stillroom/actions/workflows/ci.yml"><img src="https://github.com/A4ever369/Stillroom/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="go.mod"><img src="https://img.shields.io/badge/Go-1.24-00ADD8?logo=go" alt="Go"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
+</p>
+
+---
+
+A long session with Claude Code or Codex produces real understanding — how the
+deploy works, which gotcha bit you, why a decision was made. It evaporates when
+the session ends. Stillroom distils that session into reviewable **facts** and
+**playbooks**, on your own machine, and lets you hand them to someone else.
+
+There are two ways to use it, and they are the same knowledge travelling two
+roads:
+
+**Send it to a person.** Run `still publish`, get a link, send it. They run
+`still pull <link>` and their agent picks up what you learned — no write-up,
+no meeting. Try it at **[stillroom.sh](https://stillroom.sh)**.
+
+**Keep it in the repo.** Commit the distilled `.team-context/` and it rides your
+normal PR; every teammate who pulls the repo starts their next session with the
+team's accumulated knowledge. One fact per file, so **git merge is the fusion
+algorithm**.
+
+> The name: a *stillroom* was the room in a great house where remedies and
+> essences were distilled, and the *still room book* was the household's
+> knowledge base — recipes and hard-won know-how, each keeper adding what they
+> had verified themselves. This is that, for the AI era.
+
+## Send it as a link
+
+The fastest way in, and the one [stillroom.sh](https://stillroom.sh) is built
+around. Finish a session with your agent, then:
+
+```console
+$ still publish
+Nothing has been distilled from this repo yet.
+  3 recent session(s) can be distilled now. Each is a `claude -p` call
+  that runs on this machine and spends your own model quota.
+Distill them? [y/N] y
+
+Sharing 6 facts, 1 playbook  ·  9 KB  ·  mode: knowledge
+  deploy.gateway.pipeline      Pushing to dev triggers CI → ECR → SSM…
+  …
+Also include the sessions behind this knowledge? [y/N] n
+Upload and create a share link? [y/N] y
+
+  https://stillroom.sh/k/7f3a2b91c4d0
+
+Send that to anyone. They paste this into their own Claude Code or Codex:
+  still pull https://stillroom.sh/k/7f3a2b91c4d0
+```
+
+Whoever you send it to runs `still pull <link>`. The knowledge lands in their
+repo under `.team-context/received/`, **attributed to you, kept out of their own
+project's facts**, and framed as quoted material — someone else's report about
+their environment, not instructions to their agent. Their next session, and
+every one after, starts knowing it.
+
+Publishing needs no account; signing in (GitHub or Google) puts your name on
+what you share and gives you a list of it at
+[stillroom.sh](https://stillroom.sh). Nothing leaves your machine but the facts
+you confirmed — add `--full` to include the redacted sessions too.
 
 ## How it works
 
