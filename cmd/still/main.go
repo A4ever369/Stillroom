@@ -127,13 +127,37 @@ func repoStore() (ir.Store, error) {
 	if err != nil {
 		return ir.Store{}, err
 	}
+	return storeForDir(dir)
+}
+
+// storeForDir finds the git repo containing dir and returns its store, refusing
+// the home directory and the filesystem root. Both are real traps: people run
+// an agent in ~ , and if ~ happens to be a git repo (dotfiles often are),
+// "distill this repo" would mean "distill every session I have ever had
+// anywhere under my home directory" — knowledge with no coherent owner and a
+// .team-context/ dumped in $HOME. A project is a subdirectory, not your whole
+// account.
+func storeForDir(start string) (ir.Store, error) {
+	dir, err := filepath.Abs(start)
+	if err != nil {
+		return ir.Store{}, err
+	}
+	home, _ := os.UserHomeDir()
 	for {
 		if fi, err := os.Stat(filepath.Join(dir, ".git")); err == nil && fi.IsDir() {
+			if home != "" && dir == filepath.Clean(home) {
+				return ir.Store{}, fmt.Errorf(
+					"%s is your home directory, not a project — distilling it would sweep in every session you have had anywhere under it.\n"+
+						"cd into the specific repo you want to share, then run the command there (or pass --dir <repo>)", dir)
+			}
+			if parent := filepath.Dir(dir); parent == dir {
+				return ir.Store{}, fmt.Errorf("%s is the filesystem root, not a project", dir)
+			}
 			return ir.Store{Root: dir}, nil
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return ir.Store{}, fmt.Errorf("not inside a git repository")
+			return ir.Store{}, fmt.Errorf("not inside a git repository — cd into a project you have worked in, then try again")
 		}
 		dir = parent
 	}

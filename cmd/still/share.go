@@ -45,6 +45,7 @@ func cmdPublish(args []string) error {
 	out := fs.String("out", "", "write the pack to a file instead of uploading")
 	yes := fs.Bool("yes", false, "skip the confirmation prompt (for scripts; think before using it)")
 	anon := fs.Bool("anon", false, "publish without signing in — the link works, but it will not appear in your list")
+	dir := fs.String("dir", "", "the repo to distil and share (default: the repo you are standing in)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -53,7 +54,7 @@ func cmdPublish(args []string) error {
 	// command has to be able to start from nothing. A first-time visitor pasting
 	// that line has no .team-context/ and no distilled facts; making them read
 	// two error messages and run two more commands is not "one line".
-	s, err := repoStore()
+	s, err := publishStore(*dir)
 	if err != nil {
 		return err
 	}
@@ -61,6 +62,16 @@ func cmdPublish(args []string) error {
 		if err := s.Init(); err != nil {
 			return err
 		}
+	}
+	// Make the scope visible before anything happens. The single most confusing
+	// thing about "distil this repo" is not knowing which repo that is, or how
+	// many sessions fall inside it.
+	if n, _ := countPendingSessions(s); true {
+		fmt.Printf("Distilling from %s", s.Root)
+		if n > 0 {
+			fmt.Printf(" — %d session(s) found here", n)
+		}
+		fmt.Println()
 	}
 
 	// Always build the knowledge pack first. Whether to attach the sessions is a
@@ -292,6 +303,25 @@ func sessionsBytes(p pack.Pack) int {
 		n += len(s.Text)
 	}
 	return n
+}
+
+// publishStore resolves the repo to distil: an explicit --dir, or the repo the
+// user is standing in. Both go through the same home-directory guard.
+func publishStore(dir string) (ir.Store, error) {
+	if dir != "" {
+		return storeForDir(dir)
+	}
+	return repoStore()
+}
+
+// countPendingSessions reports how many of this repo's sessions are eligible,
+// for the scope line. Best-effort: a discovery error just shows no count.
+func countPendingSessions(s ir.Store) (int, error) {
+	paths, err := pendingSessions(s, true)
+	if err != nil {
+		return 0, err
+	}
+	return len(paths), nil
 }
 
 // ensureSignedIn signs the publisher in before an upload, unless they already
