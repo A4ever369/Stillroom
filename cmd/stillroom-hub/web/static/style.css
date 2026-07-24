@@ -99,12 +99,11 @@ code, .mono { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0;
 }
 .brand {
   display: inline-flex; align-items: center; gap: var(--s-xs);
-  color: var(--ink); font-weight: 600; letter-spacing: -0.2px; font-size: 15px;
+  color: var(--ink); font-weight: 600; letter-spacing: -0.2px; font-size: 16px;
 }
 .mark {
-  width: 20px; height: 15px; flex: none;
-  /* Pixel art, like the hero — the old outline flask belonged to a different
-     drawing. Integer size only; 20x15 is 14x10 at a clean scale factor. */
+  width: 28px; height: 20px; flex: none;
+  /* Pixel art, like the hero. Integer size only — 28x20 is 14x10 at 2x. */
   shape-rendering: crispEdges;
 }
 .m-glass  { fill: var(--ink-muted); }
