@@ -138,6 +138,21 @@
 
 {{template "foot" .}}
 <script src="/static/copy.js"></script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Stillroom",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "macOS, Linux",
+  "url": "{{.BaseURL}}",
+  "description": "Stillroom distils a coding session with Claude Code or Codex into facts and hands them to a teammate as one link. They paste it into their own agent and pick up where you left off.",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "softwareHelp": "{{.BaseURL}}/llms.txt",
+  "downloadUrl": "{{.BaseURL}}/install.sh",
+  "sameAs": "https://github.com/A4ever369/Stillroom"
+}
+</script>
 </body>
 </html>
 {{end}}

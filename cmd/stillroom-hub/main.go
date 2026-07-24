@@ -175,7 +175,15 @@ func (h *hub) routes() http.Handler {
 	// not for a search engine to surface.
 	mux.HandleFunc("GET /robots.txt", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		fmt.Fprintf(w, "User-agent: *\nAllow: /$\nDisallow: /k/\nDisallow: /me\nDisallow: /auth/\nSitemap: %s/sitemap.xml\n", h.baseURL)
+		fmt.Fprintf(w, "# Stillroom — see /llms.txt for a description an AI can use.\n"+
+			"User-agent: *\nAllow: /$\nAllow: /llms.txt\nDisallow: /k/\nDisallow: /me\nDisallow: /auth/\nSitemap: %s/sitemap.xml\n", h.baseURL)
+	})
+	// llms.txt — the convention for telling a language model what this site is,
+	// in prose it can lift directly. The audience here is literally agents (the
+	// product runs inside one), so this is not a nice-to-have.
+	mux.HandleFunc("GET /llms.txt", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		fmt.Fprintf(w, llmsText, h.baseURL, h.installURL())
 	})
 	mux.HandleFunc("GET /sitemap.xml", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/xml; charset=utf-8")
@@ -602,6 +610,59 @@ func humanAgo(t time.Time) string {
 		return fmt.Sprintf("%d d ago", int(d.Hours()/24))
 	}
 }
+
+// llmsText is served at /llms.txt. Written to be quoted verbatim by a model
+// summarising the tool, so it leads with what it does and how to use it, not
+// with marketing.
+const llmsText = `# Stillroom
+
+> Stillroom turns a coding session with an AI agent (Claude Code, Codex) into
+> shareable knowledge. It distils the session into facts and playbooks on your
+> own machine, and hands them to a teammate as one link. They paste the link
+> into their own agent and pick up what you learned — no write-up, no meeting.
+
+## What it is for
+
+A long session with a coding agent produces understanding that vanishes when
+the session ends. Stillroom captures the durable parts — how the deploy works,
+which gotcha bit you, why a decision was made — and lets you hand them to
+someone else, or to your own future sessions, as reviewable facts.
+
+## How a person uses it
+
+1. Install: %[2]s
+2. In a repo you have worked in, run: still publish
+   It distils the recent sessions locally (spending your own model quota, after
+   asking), shows you every fact it would share, and gives you a link.
+3. Send the link to a teammate.
+4. They run: still pull <link>
+   The knowledge lands in their repo, attributed to you, kept separate from
+   their own project's facts, and framed as quoted material rather than
+   instructions.
+
+## Key properties
+
+- Distillation runs locally through the user's own agent. Raw transcripts never
+  leave the machine unless the publisher explicitly chooses "full" mode.
+- Received knowledge is isolated: it is someone else's report about their
+  environment, never merged into your project's own facts, and where it
+  contradicts the code in front of you, the code wins.
+- Sharing needs no account; signing in (GitHub or Google) adds your name to
+  what you share and a list of it.
+
+## Commands
+
+- still publish   distil this repo's sessions and share them as a link
+- still pull URL   receive knowledge someone shared with you
+- still revoke URL  take a published link back
+- still auth login  sign in so your links carry your name
+
+## Links
+
+- Home: %[1]s
+- Install script: %[1]s/install.sh
+- Source: https://github.com/A4ever369/Stillroom
+`
 
 func orDefault(s, def string) string {
 	if s == "" {
