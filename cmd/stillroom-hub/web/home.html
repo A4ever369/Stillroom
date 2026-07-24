@@ -120,12 +120,18 @@
       link — no write-up, no walkthrough, no wall of context pasted into chat.
     </p>
 
-    <div class="command">
+    <div class="command" data-mode="knowledge">
       <div class="command-head">
-        paste this into Claude Code or Codex
-        <button class="copy" type="button" data-copy="{{.Command}}">Copy</button>
+        <div class="mode-toggle" role="tablist" aria-label="What to share">
+          <button class="mode-opt on" data-mode="knowledge" role="tab" aria-selected="true">Just the facts</button>
+          <button class="mode-opt" data-mode="full" role="tab" aria-selected="false">Facts + how you got there</button>
+        </div>
+        <button class="copy" type="button" data-copy-mode>Copy</button>
       </div>
-      <pre>{{.Command}}</pre>
+      <pre class="cmd-knowledge">{{.Command}}</pre>
+      <pre class="cmd-full" hidden>{{.CommandFull}}</pre>
+      <p class="mode-note mode-note-knowledge">Only the distilled facts leave your machine. Your session transcript stays on it.</p>
+      <p class="mode-note mode-note-full" hidden>Also shares your session transcript, redacted — the reasoning, not just the conclusions. Read what it lists before you send.</p>
     </div>
 
     <div class="steps">

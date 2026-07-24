@@ -197,23 +197,24 @@ func (h *hub) routes() http.Handler {
 // ---- pages ----
 
 type pageData struct {
-	Title     string
-	Desc      string
-	Path      string
-	Account   *Account
-	SignIn    bool
-	BaseURL   string
-	Command   string
-	Version   string
-	Record    *Record
-	Pack      *pack.Pack
-	Records   []Record
-	PullCmd   string
-	ShareURL  string
-	Providers []Provider
-	Next      string
-	Anonymous bool
-	Error     string
+	Title       string
+	Desc        string
+	Path        string
+	Account     *Account
+	SignIn      bool
+	BaseURL     string
+	Command     string
+	Version     string
+	Record      *Record
+	Pack        *pack.Pack
+	Records     []Record
+	PullCmd     string
+	ShareURL    string
+	Providers   []Provider
+	Next        string
+	CommandFull string
+	Anonymous   bool
+	Error       string
 }
 
 func (h *hub) page(r *http.Request) pageData {
@@ -228,12 +229,14 @@ func (h *hub) page(r *http.Request) pageData {
 func (h *hub) home(w http.ResponseWriter, r *http.Request) {
 	d := h.page(r)
 	d.Desc = "Stillroom distils a coding session with Claude Code or Codex into facts and hands them to a teammate as one link. No write-up, no meeting."
-	// One line, because the thing being copied should be the thing that works —
-	// the explaining belongs on the page, where it does not have to survive a
-	// paste. Written as a request rather than a shell command so the agent
-	// handles installation and PATH itself, which is exactly the part a
-	// copy-pasted `curl ... && still publish` chain gets wrong.
-	d.Command = h.publishInvitation()
+	// Two commands, one per share mode, so the choice is made on the page and
+	// carried into the paste as --knowledge or --full rather than only surfacing
+	// as a terminal prompt. Written as a request, not a shell line, so the agent
+	// handles install and PATH — the part a copy-pasted `curl … && still
+	// publish` chain gets wrong.
+	install := "Install Stillroom (" + h.installURL() + ") and "
+	d.Command = install + "run `still publish --knowledge` to turn this session into a link I can send someone. Share only the distilled facts, not my raw transcript."
+	d.CommandFull = install + "run `still publish --full` to turn this session into a link I can send someone. Include the redacted session transcript too, so they can see how I got there."
 	render(w, "home.html", d)
 }
 

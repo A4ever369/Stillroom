@@ -136,10 +136,16 @@ code, .mono { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0;
 
 .foot {
   border-top: 1px solid var(--hairline);
-  padding: var(--s-sm) var(--s-lg); text-align: center;
+  padding: var(--s-sm) var(--s-lg);
   color: var(--ink-tertiary); font-size: 11.5px; line-height: 1.45;
+  display: flex; align-items: center; gap: var(--s-md); flex-wrap: wrap;
 }
-.dim-sep { opacity: .45; }
+.foot-left { flex: 1; min-width: 220px; }
+.foot-links { display: inline-flex; align-items: center; gap: var(--s-sm); }
+.foot-links a { color: var(--ink-subtle); display: inline-flex; }
+.foot-links a:hover { color: var(--ink); }
+.foot-ver { color: var(--ink-tertiary); }
+@media (max-width: 560px) { .foot { justify-content: center; text-align: center; } .foot-left { flex: none; } }
 
 /* ---------- the still ---------- */
 /* A raster base plus animated pixels on the same 128 grid.
@@ -249,10 +255,27 @@ code, .mono { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0;
   overflow: hidden;
 }
 .command-head {
-  display: flex; align-items: center; gap: var(--s-xs);
-  padding: var(--s-xs) var(--s-md);
+  display: flex; align-items: center; gap: var(--s-sm);
+  padding: var(--s-xs) var(--s-sm) var(--s-xs) var(--s-xs);
   border-bottom: 1px solid var(--hairline);
   font-size: 13px; color: var(--ink-subtle);
+}
+.mode-toggle {
+  display: inline-flex; gap: 2px; padding: 2px;
+  background: var(--canvas); border-radius: var(--r-md);
+}
+.mode-opt {
+  appearance: none; border: 0; cursor: pointer;
+  padding: 5px 10px; border-radius: 6px;
+  background: transparent; color: var(--ink-subtle);
+  font-family: inherit; font-size: 12.5px; font-weight: 500;
+  transition: background-color .12s ease, color .12s ease;
+}
+.mode-opt:hover { color: var(--ink); }
+.mode-opt.on { background: var(--surface-3); color: var(--ink); }
+.mode-note {
+  margin: 0; padding: var(--s-xs) var(--s-md) var(--s-sm);
+  font-size: 12.5px; color: var(--ink-tertiary); text-align: left;
 }
 .command pre {
   margin: 0; padding: var(--s-sm) var(--s-md);

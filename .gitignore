@@ -9,3 +9,4 @@ bin/
 # L5 eval run output is machine-local; eval/baseline.json IS committed.
 eval/last-run.json
 .pixgen/
+.DS_Store
