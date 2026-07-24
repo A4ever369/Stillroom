@@ -12,11 +12,14 @@
   <a class="brand" href="/">{{template "mark"}} Stillroom</a>
   <span class="spacer"></span>
   {{if .Account}}
-    <a class="nav" href="/me">my distillations</a>
-    <img class="avatar" src="{{.Account.Avatar}}" alt="" width="22" height="22">
-    <form method="post" action="/auth/signout"><button class="link" type="submit">sign out</button></form>
+    <a class="nav" href="/me">Your distillations</a>
+    <span class="whoami">
+      {{if .Account.Avatar}}<img class="avatar" src="{{.Account.Avatar}}" alt="" width="22" height="22">{{end}}
+      <span class="whoami-name">{{.Account.Login}}</span>
+    </span>
+    <form method="post" action="/auth/signout"><button class="link" type="submit">Sign out</button></form>
   {{else if .SignIn}}
-    <a class="nav" href="/auth/start">sign in</a>
+    <a class="nav nav--cta" href="/auth/start">Sign in</a>
   {{end}}
 </header>
 {{end}}

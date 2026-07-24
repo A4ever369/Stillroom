@@ -1,42 +1,62 @@
 {{define "me.html"}}<!doctype html>
 <html lang="en">
-<head>{{template "head" .}}<title>My distillations · Stillroom</title></head>
+<head>{{template "head" .}}<title>Your distillations · Stillroom</title></head>
 <body>
 {{template "topbar" .}}
 
 <main class="wrap wide">
-  <p class="section-title">My distillations</p>
-  {{if not .Records}}
-    <p class="empty">Nothing yet. Run <code>still publish</code> in a repo you have distilled.</p>
-  {{else}}
-  <table>
-    <thead><tr><th>Link</th><th>What</th><th>Mode</th><th>Size</th><th>Opened</th><th>When</th><th></th></tr></thead>
-    <tbody>
-      {{range .Records}}
-      <tr>
-        <td><a href="/k/{{.ID}}">{{.ID}}</a></td>
-        <td>{{if .Note}}{{.Note}}{{else}}{{.Facts}} facts, {{.Playbooks}} playbooks{{end}}</td>
-        <td><span class="chip mode-{{.Mode}}">{{.Mode}}</span></td>
-        <td>{{bytes .Bytes}}</td>
-        <td>{{.Downloads}}×</td>
-        <td>{{ago .CreatedAt}}</td>
-        <td>
-          {{if .Revoked}}<span class="chip">revoked</span>
-          {{else}}<form method="post" action="/k/{{.ID}}/revoke"><button class="link" type="submit">revoke</button></form>{{end}}
-        </td>
-      </tr>
-      {{end}}
-    </tbody>
-  </table>
-  <div class="warn">
-    <b>Revoking</b>
-    A revoked link stops resolving immediately. It cannot reach anyone who already pulled it —
-    that copy is on their machine now, the same as anything else you have sent someone.
+  <div class="page-head">
+    <h1>Your distillations</h1>
+    <p>Everything you have published from any machine. A link stops resolving the
+       moment you revoke it — though anyone who already pulled it keeps their copy.</p>
   </div>
+
+  {{if not .Records}}
+  <div class="blank">
+    <div class="blank-mark">{{template "mark"}}</div>
+    <h2>Nothing shared yet</h2>
+    <p>Finish a session with your agent, then paste this into it.</p>
+    <div class="command">
+      <div class="command-head">
+        paste this into Claude Code or Codex
+        <button class="copy" type="button" data-copy="{{.Command}}">Copy</button>
+      </div>
+      <pre>{{.Command}}</pre>
+    </div>
+  </div>
+  {{else}}
+  <ul class="packs">
+    {{range .Records}}
+    <li class="pack{{if .Revoked}} pack--revoked{{end}}">
+      <div class="pack-main">
+        <a class="pack-note" href="/k/{{.ID}}">{{if .Note}}{{.Note}}{{else}}Untitled pack{{end}}</a>
+        <div class="pack-meta">
+          {{if .Repo}}<span>{{.Repo}}</span><span class="dot">·</span>{{end}}
+          <span>{{.Facts}} facts</span>
+          {{if .Playbooks}}<span class="dot">·</span><span>{{.Playbooks}} playbooks</span>{{end}}
+          <span class="dot">·</span><span>{{bytes .Bytes}}</span>
+          <span class="chip mode-{{.Mode}}">{{.Mode}}</span>
+        </div>
+        <code class="pack-link">{{$.BaseURL}}/k/{{.ID}}</code>
+      </div>
+      <div class="pack-side">
+        <div class="pack-stat"><b>{{.Downloads}}</b><span>opened</span></div>
+        <div class="pack-when">{{ago .CreatedAt}}</div>
+        {{if .Revoked}}
+          <span class="chip chip-revoked">revoked</span>
+        {{else}}
+          <button class="copy ghost" type="button" data-copy="{{$.BaseURL}}/k/{{.ID}}">Copy link</button>
+          <form method="post" action="/k/{{.ID}}/revoke"><button class="link danger" type="submit">Revoke</button></form>
+        {{end}}
+      </div>
+    </li>
+    {{end}}
+  </ul>
   {{end}}
 </main>
 
 {{template "foot" .}}
+<script src="/static/copy.js"></script>
 </body>
 </html>
 {{end}}

@@ -201,8 +201,7 @@ func (h *hub) home(w http.ResponseWriter, r *http.Request) {
 	// paste. Written as a request rather than a shell command so the agent
 	// handles installation and PATH itself, which is exactly the part a
 	// copy-pasted `curl ... && still publish` chain gets wrong.
-	d.Command = "Install Stillroom (" + h.installURL() +
-		") and run `still publish` to turn this session into a link I can send someone."
+	d.Command = h.publishInvitation()
 	render(w, "home.html", d)
 }
 
@@ -234,6 +233,14 @@ func (h *hub) viewPack(w http.ResponseWriter, r *http.Request) {
 	// and not only wrapped inside a command.
 	d.ShareURL = h.baseURL + "/k/" + id
 	render(w, "pack.html", d)
+}
+
+// publishInvitation is the one line a publisher copies. It is a request rather
+// than a shell command so the agent resolves installation and PATH itself,
+// which is exactly what a pasted `curl … && still publish` chain gets wrong.
+func (h *hub) publishInvitation() string {
+	return "Install Stillroom (" + h.installURL() +
+		") and run `still publish` to turn this session into a link I can send someone."
 }
 
 // pullInvitation is the text the receiver pastes. It names who sent it and
@@ -345,6 +352,9 @@ func (h *hub) myPacks(w http.ResponseWriter, r *http.Request) {
 	}
 	d := h.page(r)
 	d.Records = h.store.ByPublisher(acc.ID)
+	// The empty state is the most likely state for a new account, so it gets
+	// the same line the landing page offers rather than a dead sentence.
+	d.Command = h.publishInvitation()
 	render(w, "me.html", d)
 }
 
