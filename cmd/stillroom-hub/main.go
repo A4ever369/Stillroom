@@ -170,6 +170,18 @@ func (h *hub) routes() http.Handler {
 			"signin_enabled": h.auth.Enabled(),
 		})
 	})
+	// robots + sitemap: let the landing page be indexed, keep the per-pack /k/
+	// pages out of search — a share link is meant for the person it was sent to,
+	// not for a search engine to surface.
+	mux.HandleFunc("GET /robots.txt", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		fmt.Fprintf(w, "User-agent: *\nAllow: /$\nDisallow: /k/\nDisallow: /me\nDisallow: /auth/\nSitemap: %s/sitemap.xml\n", h.baseURL)
+	})
+	mux.HandleFunc("GET /sitemap.xml", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+		fmt.Fprintf(w, `<?xml version="1.0" encoding="UTF-8"?>`+"\n"+
+			`<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>%s/</loc></url></urlset>`+"\n", h.baseURL)
+	})
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(staticFS)))
 	return logging(mux)
 }
@@ -177,6 +189,9 @@ func (h *hub) routes() http.Handler {
 // ---- pages ----
 
 type pageData struct {
+	Title     string
+	Desc      string
+	Path      string
 	Account   *Account
 	SignIn    bool
 	BaseURL   string
@@ -194,7 +209,7 @@ type pageData struct {
 }
 
 func (h *hub) page(r *http.Request) pageData {
-	d := pageData{BaseURL: h.baseURL, Version: version, SignIn: h.auth.Enabled()}
+	d := pageData{BaseURL: h.baseURL, Version: version, SignIn: h.auth.Enabled(), Path: r.URL.Path}
 	if acc, ok := h.auth.Current(r); ok {
 		d.Account = &acc
 	}
@@ -204,6 +219,7 @@ func (h *hub) page(r *http.Request) pageData {
 
 func (h *hub) home(w http.ResponseWriter, r *http.Request) {
 	d := h.page(r)
+	d.Desc = "Stillroom distils a coding session with Claude Code or Codex into facts and hands them to a teammate as one link. No write-up, no meeting."
 	// One line, because the thing being copied should be the thing that works —
 	// the explaining belongs on the page, where it does not have to survive a
 	// paste. Written as a request rather than a shell command so the agent
@@ -235,6 +251,17 @@ func (h *hub) viewPack(w http.ResponseWriter, r *http.Request) {
 	}
 	d := h.page(r)
 	d.Record, d.Pack = &rec, &p
+	if rec.Note != "" {
+		d.Title = rec.Note
+	} else {
+		d.Title = "A knowledge pack"
+	}
+	who := rec.Publisher
+	if who == "" {
+		who = "Someone"
+	}
+	d.Desc = fmt.Sprintf("%s shared %d facts from %s. Pull it into your own agent to pick up where they left off.",
+		who, len(p.Facts), orDefault(rec.Repo, "a project"))
 	d.PullCmd = h.pullInvitation(rec, id)
 	// The bare link is what a publisher actually sends someone. It arrives in
 	// a chat window, not a terminal, so the page has to hand it over as a link
@@ -574,4 +601,11 @@ func humanAgo(t time.Time) string {
 	default:
 		return fmt.Sprintf("%d d ago", int(d.Hours()/24))
 	}
+}
+
+func orDefault(s, def string) string {
+	if s == "" {
+		return def
+	}
+	return s
 }

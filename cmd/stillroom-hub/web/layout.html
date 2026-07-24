@@ -1,8 +1,29 @@
 {{define "head"}}
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{if .Title}}{{.Title}} · Stillroom{{else}}Stillroom — hand someone what you and your AI worked out{{end}}</title>
+<meta name="description" content="{{if .Desc}}{{.Desc}}{{else}}Stillroom distils a coding session with Claude Code or Codex into facts and hands them to a teammate as one link. They paste it into their own agent and pick up where you left off — no write-up, no meeting.{{end}}">
+<link rel="canonical" href="{{.BaseURL}}{{.Path}}">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Stillroom">
+<meta property="og:title" content="{{if .Title}}{{.Title}}{{else}}Hand someone what you and your AI worked out{{end}}">
+<meta property="og:description" content="{{if .Desc}}{{.Desc}}{{else}}A coding session becomes one link. They paste it into their own agent and pick up where you left off.{{end}}">
+<meta property="og:url" content="{{.BaseURL}}{{.Path}}">
+<meta property="og:image" content="{{.BaseURL}}/static/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{if .Title}}{{.Title}}{{else}}Hand someone what you and your AI worked out{{end}}">
+<meta name="twitter:description" content="{{if .Desc}}{{.Desc}}{{else}}A coding session becomes one link. They paste it into their own agent and pick up where you left off.{{end}}">
+<meta name="twitter:image" content="{{.BaseURL}}/static/og.png">
+<meta name="theme-color" content="#010107">
+
+<link rel="icon" href="/static/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16.png">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
 <link rel="stylesheet" href="/static/style.css">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚗️</text></svg>">
 {{end}}
 
 {{define "mark"}}<svg class="mark" viewBox="0 0 14 10" shape-rendering="crispEdges" aria-hidden="true"><rect class="m-drop" x="6" y="0" width="1" height="1"/><rect class="m-glass" x="3" y="2" width="4" height="1"/><rect class="m-glass" x="3" y="3" width="1" height="1"/><rect class="m-glass" x="6" y="3" width="1" height="1"/><rect class="m-glass" x="2" y="4" width="2" height="1"/><rect class="m-glass" x="6" y="4" width="2" height="1"/><rect class="m-glass" x="1" y="5" width="1" height="1"/><rect class="m-glass" x="8" y="5" width="1" height="1"/><rect class="m-glass" x="1" y="6" width="1" height="1"/><rect class="m-liquid" x="2" y="6" width="6" height="1"/><rect class="m-glass" x="8" y="6" width="1" height="1"/><rect class="m-glass" x="1" y="7" width="1" height="1"/><rect class="m-liquid" x="2" y="7" width="6" height="1"/><rect class="m-glass" x="8" y="7" width="1" height="1"/><rect class="m-glass" x="2" y="8" width="1" height="1"/><rect class="m-liquid" x="3" y="8" width="4" height="1"/><rect class="m-glass" x="7" y="8" width="1" height="1"/><rect class="m-glass" x="3" y="9" width="4" height="1"/></svg>{{end}}
