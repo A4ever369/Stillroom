@@ -28,6 +28,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"regexp"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -47,6 +48,27 @@ func init() {
 	if bi, ok := debug.ReadBuildInfo(); ok && bi.Main.Version != "" && bi.Main.Version != "(devel)" {
 		version = bi.Main.Version
 	}
+}
+
+// pseudoVersion matches Go's timestamp+hash form, e.g. the
+// v0.1.1-0.20260724061419-237b2dec4401 a `go build` of an untagged, dirty tree
+// produces. It is precise and unreadable — fine for /healthz, wrong for a page.
+var pseudoVersion = regexp.MustCompile(`-0\.\d{14}-[0-9a-f]{12}`)
+
+// shortVersion is the version a reader wants in a footer. Release builds carry a
+// git-describe string (v0.1.0-27-gf77a73b); drop the -g<hash> and keep the
+// commit distance. Local builds — a dirty tree, or `go install` of an untagged
+// commit — carry a +dirty tag or a pseudo-version; those say "dev", because the
+// exact hash belongs in a bug report (/healthz), not on the landing page.
+func shortVersion(v string) string {
+	if v == "" || v == "dev" || v == "(devel)" ||
+		strings.ContainsRune(v, '+') || pseudoVersion.MatchString(v) {
+		return "dev"
+	}
+	if i := strings.LastIndex(v, "-g"); i >= 0 {
+		return v[:i]
+	}
+	return v
 }
 
 //go:embed web
@@ -218,7 +240,7 @@ type pageData struct {
 }
 
 func (h *hub) page(r *http.Request) pageData {
-	d := pageData{BaseURL: h.baseURL, Version: version, SignIn: h.auth.Enabled(), Path: r.URL.Path}
+	d := pageData{BaseURL: h.baseURL, Version: shortVersion(version), SignIn: h.auth.Enabled(), Path: r.URL.Path}
 	if acc, ok := h.auth.Current(r); ok {
 		d.Account = &acc
 	}
