@@ -44,6 +44,7 @@ func cmdPublish(args []string) error {
 	knowledge := fs.Bool("knowledge", false, "share only the distilled knowledge, without being asked")
 	out := fs.String("out", "", "write the pack to a file instead of uploading")
 	yes := fs.Bool("yes", false, "skip the confirmation prompt (for scripts; think before using it)")
+	anon := fs.Bool("anon", false, "publish without signing in — the link works, but it will not appear in your list")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -125,6 +126,18 @@ func cmdPublish(args []string) error {
 	if !*yes && !confirm("Upload and create a share link?") {
 		fmt.Println("nothing uploaded.")
 		return nil
+	}
+
+	// Attribute the pack to a person, so it shows up in their list and arrives
+	// with their name on it. Publishing does not strictly require an account —
+	// --anon opts out, and a hub with no sign-in configured cannot attribute
+	// anyone — but the default is to sign in first, because a link the
+	// publisher cannot find again is a worse surprise than one browser round
+	// trip.
+	if !*anon {
+		if err := ensureSignedIn(*yes); err != nil {
+			return err
+		}
 	}
 
 	link, token, err := uploadPack(p)
@@ -279,6 +292,45 @@ func sessionsBytes(p pack.Pack) int {
 		n += len(s.Text)
 	}
 	return n
+}
+
+// ensureSignedIn signs the publisher in before an upload, unless they already
+// are or the hub has no sign-in to offer. It is deliberately here rather than
+// as a required flag: the landing page's whole pitch is that one pasted line
+// produces a link, so the sign-in is folded into publishing rather than made a
+// separate step someone has to know to run first.
+func ensureSignedIn(assumeYes bool) error {
+	if authToken() != "" {
+		return nil // already have an identity for this hub
+	}
+	if !hubWantsSignIn() {
+		return nil // anonymous hub — no one to attribute to
+	}
+
+	fmt.Println("\nSign in so this shows up in your list and arrives with your name on it.")
+	fmt.Println("(or re-run with --anon to publish without an account)")
+	if !assumeYes && !confirm("Sign in now?") {
+		return errors.New("not signed in — re-run with --anon to publish anonymously")
+	}
+	return authLogin()
+}
+
+// hubWantsSignIn asks the hub whether it has sign-in configured. A hub that
+// does not (a local demo, a private instance) cannot attribute a pack to
+// anyone, so publishing there stays anonymous without pestering the user.
+func hubWantsSignIn() bool {
+	resp, err := (&http.Client{Timeout: 10 * time.Second}).Get(hubBase() + "/healthz")
+	if err != nil {
+		return false // unreachable hub: let the upload attempt report the real error
+	}
+	defer resp.Body.Close()
+	var h struct {
+		SignInEnabled bool `json:"signin_enabled"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&h); err != nil {
+		return false
+	}
+	return h.SignInEnabled
 }
 
 // printPackSummary is the consent moment. Publishing puts this content on

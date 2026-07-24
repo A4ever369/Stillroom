@@ -160,7 +160,15 @@ func (h *hub) routes() http.Handler {
 		_, _ = w.Write(raw)
 	})
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "version": version})
+		// signin_enabled lets `still publish` decide whether to sign the user in
+		// before uploading: on a hub with providers configured, publishing is
+		// attributed by default so a pack shows up in the publisher's list; on a
+		// hub without them, there is no one to attribute to and it stays
+		// anonymous. The CLI reads this rather than guessing.
+		writeJSON(w, http.StatusOK, map[string]any{
+			"ok": true, "version": version,
+			"signin_enabled": h.auth.Enabled(),
+		})
 	})
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(staticFS)))
 	return logging(mux)
