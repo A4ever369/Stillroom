@@ -40,7 +40,8 @@ func hubBase() string {
 func cmdPublish(args []string) error {
 	fs := flag.NewFlagSet("publish", flag.ContinueOnError)
 	note := fs.String("note", "", "one line describing what this is (\"how our deploy actually works\")")
-	full := fs.Bool("full", false, "include redacted session transcripts, not just the distilled knowledge")
+	full := fs.Bool("full", false, "also share the session transcripts (redacted), without being asked")
+	knowledge := fs.Bool("knowledge", false, "share only the distilled knowledge, without being asked")
 	out := fs.String("out", "", "write the pack to a file instead of uploading")
 	yes := fs.Bool("yes", false, "skip the confirmation prompt (for scripts; think before using it)")
 	if err := fs.Parse(args); err != nil {
@@ -61,33 +62,11 @@ func cmdPublish(args []string) error {
 		}
 	}
 
-	mode := pack.ModeKnowledge
-	if *full {
-		mode = pack.ModeFull
-	}
-
-	// In full mode the evidence is the sessions this knowledge came from. Only
-	// sessions belonging to this repo are eligible — never the whole machine.
-	var digests []session.Digest
-	if mode == pack.ModeFull {
-		paths, err := pendingSessions(s, true)
-		if err != nil {
-			return err
-		}
-		sortByMtimeDesc(paths)
-		if len(paths) > 5 {
-			paths = paths[:5]
-		}
-		for _, p := range paths {
-			d, err := digestSession(p)
-			if err != nil {
-				continue
-			}
-			digests = append(digests, d)
-		}
-	}
-
-	p, err := pack.Build(s, digests, mode, *note, originOf(s))
+	// Always build the knowledge pack first. Whether to attach the sessions is a
+	// decision made after seeing this, not a flag the person carries in from a
+	// website — so it is a prompt below, defaulted by --full/--knowledge for
+	// scripts and for people who already know which they want.
+	p, err := pack.Build(s, nil, pack.ModeKnowledge, *note, originOf(s))
 	if err != nil {
 		return err
 	}
@@ -98,7 +77,7 @@ func cmdPublish(args []string) error {
 		if err := distillForPublish(s, *yes); err != nil {
 			return err
 		}
-		if p, err = pack.Build(s, digests, mode, *note, originOf(s)); err != nil {
+		if p, err = pack.Build(s, nil, pack.ModeKnowledge, *note, originOf(s)); err != nil {
 			return err
 		}
 		if len(p.Facts) == 0 && len(p.Playbooks) == 0 {
@@ -107,6 +86,29 @@ func cmdPublish(args []string) error {
 	}
 
 	printPackSummary(p)
+
+	// The evidence layer: attach the sessions this knowledge came from, or not.
+	// This is the moment to ask — the person has just seen the facts, and the
+	// difference is whether their transcripts leave the machine. Flags decide
+	// it non-interactively; otherwise it is an explicit question, defaulting to
+	// the safe answer (knowledge only).
+	if includeSessions(*full, *knowledge, *yes) {
+		digests, err := repoSessionDigests(s)
+		if err != nil {
+			return err
+		}
+		if len(digests) == 0 {
+			fmt.Println("\n  No sessions found for this repo — sharing the knowledge only.")
+		} else {
+			full, err := pack.Build(s, digests, pack.ModeFull, *note, originOf(s))
+			if err != nil {
+				return err
+			}
+			p = full
+			fmt.Println()
+			printSessionsAdded(p)
+		}
+	}
 
 	if *out != "" {
 		raw, err := p.Encode()
@@ -222,6 +224,62 @@ func distillForPublish(s ir.Store, assumeYes bool) error {
 // publishDistillLimit caps the cold-start pass. Someone who just wants a link
 // should not accidentally trigger a distillation of months of history.
 const publishDistillLimit = 3
+
+// includeSessions decides whether to attach the evidence layer. The flags are
+// for scripts and for people who already know; with neither, it is an explicit
+// question that defaults to No, because the default must be the one that keeps
+// the transcript on the machine.
+func includeSessions(full, knowledge, assumeYes bool) bool {
+	switch {
+	case full:
+		return true
+	case knowledge:
+		return false
+	case assumeYes:
+		return false // --yes automates the run; it must not silently opt into sending more
+	default:
+		return confirm("Also include the sessions behind this knowledge? " +
+			"(redacted, but they are your raw conversation — say no if unsure)")
+	}
+}
+
+// repoSessionDigests gathers this repo's recent sessions as digests. Only this
+// repo's sessions are ever eligible — never the whole machine — and the newest
+// five, so a full-mode pack stays something a person can read.
+func repoSessionDigests(s ir.Store) ([]session.Digest, error) {
+	paths, err := pendingSessions(s, true)
+	if err != nil {
+		return nil, err
+	}
+	sortByMtimeDesc(paths)
+	if len(paths) > 5 {
+		paths = paths[:5]
+	}
+	var out []session.Digest
+	for _, p := range paths {
+		if d, err := digestSession(p); err == nil {
+			out = append(out, d)
+		}
+	}
+	return out, nil
+}
+
+func printSessionsAdded(p pack.Pack) {
+	fmt.Printf("  Added %d session transcript(s) — %s.\n", len(p.Sessions), humanBytes(sessionsBytes(p)))
+	if n := p.Redactions(); n > 0 {
+		fmt.Printf("  %d secret-shaped string(s) scrubbed from them.\n", n)
+	}
+	fmt.Println("  Read the list above before you send it — redaction removes things shaped")
+	fmt.Println("  like credentials, not sentences that happen to be confidential.")
+}
+
+func sessionsBytes(p pack.Pack) int {
+	n := 0
+	for _, s := range p.Sessions {
+		n += len(s.Text)
+	}
+	return n
+}
 
 // printPackSummary is the consent moment. Publishing puts this content on
 // someone else's machine, so what is about to leave is shown in full — counts,

@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
@@ -24,9 +25,25 @@ type Account struct {
 	// ID is namespaced by provider ("github:123"), because two providers'
 	// numeric ids are different people who would otherwise collide.
 	ID       string `json:"id"`
-	Login    string `json:"login"`  // display handle or name
-	Avatar   string `json:"avatar"` // for the website
+	Login    string `json:"login"` // display handle or name
 	Provider string `json:"provider"`
+}
+
+// avatarCount is how many wizard avatars ship under web/static/avatars/.
+const avatarCount = 6
+
+// AvatarURL is the pixel wizard assigned to an account. Deliberately NOT the
+// provider's photo: showing someone's real face on a pack page is more than
+// this needs, and a wizard keeps the whole product in one visual world. The
+// choice is deterministic in the account id, so a person always gets the same
+// one, on every machine, without anything being stored.
+func (a Account) AvatarURL() string {
+	var h uint32 = 2166136261
+	for i := 0; i < len(a.ID); i++ { // FNV-1a, small and stable
+		h ^= uint32(a.ID[i])
+		h *= 16777619
+	}
+	return fmt.Sprintf("/static/avatars/w%d.png", h%avatarCount+1)
 }
 
 // Auth holds OAuth configuration plus the two short-lived in-memory tables:

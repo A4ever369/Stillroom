@@ -14,7 +14,7 @@
   {{if .Account}}
     <a class="nav" href="/me">Your distillations</a>
     <span class="whoami">
-      {{if .Account.Avatar}}<img class="avatar" src="{{.Account.Avatar}}" alt="" width="22" height="22">{{end}}
+      <img class="avatar" src="{{.Account.AvatarURL}}" alt="" width="22" height="22">
       <span class="whoami-name">{{.Account.Login}}</span>
     </span>
     <form method="post" action="/auth/signout"><button class="link" type="submit">Sign out</button></form>

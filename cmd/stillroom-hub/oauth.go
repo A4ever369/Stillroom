@@ -135,14 +135,13 @@ func githubProvider() Provider {
 		scope:        "read:user",
 		parse: func(raw []byte) (Account, error) {
 			var u struct {
-				ID     int64  `json:"id"`
-				Login  string `json:"login"`
-				Avatar string `json:"avatar_url"`
+				ID    int64  `json:"id"`
+				Login string `json:"login"`
 			}
 			if err := json.Unmarshal(raw, &u); err != nil {
 				return Account{}, err
 			}
-			return Account{ID: fmt.Sprint(u.ID), Login: u.Login, Avatar: u.Avatar}, nil
+			return Account{ID: fmt.Sprint(u.ID), Login: u.Login}, nil
 		},
 	}
 }
@@ -158,10 +157,9 @@ func googleProvider() Provider {
 		scope:        "openid profile email",
 		parse: func(raw []byte) (Account, error) {
 			var u struct {
-				Sub     string `json:"sub"`
-				Name    string `json:"name"`
-				Email   string `json:"email"`
-				Picture string `json:"picture"`
+				Sub   string `json:"sub"`
+				Name  string `json:"name"`
+				Email string `json:"email"`
 			}
 			if err := json.Unmarshal(raw, &u); err != nil {
 				return Account{}, err
@@ -173,7 +171,7 @@ func googleProvider() Provider {
 			if name == "" {
 				name, _, _ = strings.Cut(u.Email, "@")
 			}
-			return Account{ID: u.Sub, Login: name, Avatar: u.Picture}, nil
+			return Account{ID: u.Sub, Login: name}, nil
 		},
 	}
 }
